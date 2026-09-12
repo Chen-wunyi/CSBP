@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>WormBase Gene Lookup</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #fcfcfc; font-size: 14px; }
+        .table-custom th { background-color: #f1f3f5; color: #333; font-weight: 600; }
+        .table-custom th a { color: #333; text-decoration: none; display: block; }
+        .table-custom th a:hover { color: #0d6efd; }
+        input::placeholder { color: #adb5bd !important; opacity: 1; }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container-fluid">
+        <h4 class="mb-3 border-bottom pb-2">Caenorhabditis elegans WS298 Gene Table Lookup</h4>
+        
+        <!-- 全欄位查詢與排序表單 -->
+        <form method="GET" action="" class="row g-3 mb-4 bg-white p-3 border rounded-1">
+            <input type="hidden" name="sort" value="{{ sort_by }}">
+            
+            <div class="col-md-4">
+                <label class="form-label">WormBase ID:</label>
+                <input type="text" name="wormbase_id" class="form-control form-control-sm" placeholder="e.g. WBGene00000001" value="{{ wormbase_id }}">
+            </div>
+            
+            <!-- Status 改為下拉選單 -->
+            <div class="col-md-4">
+                <label class="form-label">Status:</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All Statuses</option>
+                    <option value="Live" {% if status == 'Live' %}selected{% endif %}>Live</option>
+                    <option value="Dead" {% if status == 'Dead' %}selected{% endif %}>Dead</option>
+                    <option value="Merged" {% if status == 'Merged' %}selected{% endif %}>Merged</option>
+                    <option value="Suppressed" {% if status == 'Suppressed' %}selected{% endif %}>Suppressed</option>
+                </select>
+            </div>
+            
+            <div class="col-md-4">
+                <label class="form-label">Sequence Name:</label>
+                <input type="text" name="sequence_name" class="form-control form-control-sm" placeholder="e.g. Y110A7A.10" value="{{ sequence_name }}">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Gene Name:</label>
+                <input type="text" name="gene_name" class="form-control form-control-sm" placeholder="e.g. aap-1" value="{{ gene_name }}">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Other Name:</label>
+                <input type="text" name="other_name" class="form-control form-control-sm" placeholder="e.g. CELE_Y110A7A.10" value="{{ other_name }}">
+            </div>
+
+            <!-- Gene Type 改為下拉選單 -->
+            <div class="col-md-4">
+                <label class="form-label">Gene Type:</label>
+                <select name="gene_type" class="form-select form-select-sm">
+                    <option value="">All Gene Types</option>
+                    <option value="protein_coding_gene" {% if gene_type == 'protein_coding_gene' %}selected{% endif %}>protein_coding_gene</option>
+                    <option value="pseudogene" {% if gene_type == 'pseudogene' %}selected{% endif %}>pseudogene</option>
+                    <option value="ncRNA_gene" {% if gene_type == 'ncRNA_gene' %}selected{% endif %}>ncRNA_gene</option>
+                    <option value="rRNA_gene" {% if gene_type == 'rRNA_gene' %}selected{% endif %}>rRNA_gene</option>
+                    <option value="snoRNA_gene" {% if gene_type == 'snoRNA_gene' %}selected{% endif %}>snoRNA_gene</option>
+                    <option value="snRNA_gene" {% if gene_type == 'snRNA_gene' %}selected{% endif %}>snRNA_gene</option>
+                    <option value="miRNA_gene" {% if gene_type == 'miRNA_gene' %}selected{% endif %}>miRNA_gene</option>
+                    <option value="tRNA_gene" {% if gene_type == 'tRNA_gene' %}selected{% endif %}>tRNA_gene</option>
+                </select>
+            </div>
+            
+            <!-- 按鈕區：包含重置、匯出 CSV 與搜尋 -->
+            <div class="col-12 d-flex justify-content-end align-items-center">
+                <a href="?" class="btn btn-outline-secondary btn-sm me-2">Reset</a>
+                <button type="submit" name="export" value="1" class="btn btn-success btn-sm me-2">Export CSV</button>
+                <button type="submit" class="btn btn-primary btn-sm">Search</button>
+            </div>
+        </form>
+
+        <div class="mb-2 text-muted">
+            Found <strong>{{ total_count }}</strong> genes matching the criteria.
+        </div>
+
+        <!-- 基因數據表格 (標題支援點擊排序) -->
+        {% if page_obj %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm table-custom">
+                <thead>
+                    <tr>
+                        <th>
+                            <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'wormbase_id' %}-wormbase_id{% else %}wormbase_id{% endif %}">
+                                WormBase ID {% if sort_by == 'wormbase_id' %}▲{% elif sort_by == '-wormbase_id' %}▼{% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'status' %}-status{% else %}status{% endif %}">
+                                Status {% if sort_by == 'status' %}▲{% elif sort_by == '-status' %}▼{% endif %}
+                            </a>
+                        </th>
+                        <th>Sequence Name</th>
+                        <th>
+                            <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'gene_name' %}-gene_name{% else %}gene_name{% endif %}">
+                                Gene Name {% if sort_by == 'gene_name' %}▲{% elif sort_by == '-gene_name' %}▼{% endif %}
+                            </a>
+                        </th>
+                        <th>Other Name</th>
+                        <th>
+                            <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'gene_type' %}-gene_type{% else %}gene_type{% endif %}">
+                                Gene Type {% if sort_by == 'gene_type' %}▲{% elif sort_by == '-gene_type' %}▼{% endif %}
+                            </a>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for gene in page_obj %}
+                    <tr>
+                        <td>
+                            <!-- WormBase ID 轉為官方超連結 -->
+                            <a href="https://wormbase.org/species/c_elegans/gene/{{ gene.wormbase_id }}" target="_blank" title="View on WormBase">
+                                <code>{{ gene.wormbase_id }}</code> 🔗
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge {% if gene.status == 'Live' %}bg-success{% elif gene.status == 'Dead' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">
+                                {{ gene.status }}
+                            </span>
+                        </td>
+                        <td>{{ gene.sequence_name }}</td>
+                        <td><strong>{{ gene.gene_name }}</strong></td>
+                        <td>{{ gene.other_name }}</td>
+                        <td>{{ gene.gene_type }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-light border text-center py-4 text-muted">
+            No records found.
+        </div>
+        {% endif %}
+
+        <!-- 分頁元件 -->
+        {% if page_obj.has_other_pages %}
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={{ sort_by }}&page=1">&laquo; First</a></li>
+                    <li class="page-item"><a class="page-link" href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={{ sort_by }}&page={{ page_obj.previous_page_number }}">Previous</a></li>
+                {% endif %}
+
+                <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={{ sort_by }}&page={{ page_obj.next_page_number }}">Next</a></li>
+                    <li class="page-item"><a class="page-link" href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={{ sort_by }}&page={{ page_obj.paginator.num_pages }}">Last &raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</body>
+</html>
