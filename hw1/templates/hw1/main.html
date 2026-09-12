@@ -2,32 +2,92 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>WormBase Gene Lookup</title>
+    <title>C. elegans Gene Lookup</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #fcfcfc; font-size: 14px; }
-        .table-custom th { background-color: #f1f3f5; color: #333; font-weight: 600; }
-        .table-custom th a { color: #333; text-decoration: none; display: block; }
-        .table-custom th a:hover { color: #0d6efd; }
-        input::placeholder { color: #adb5bd !important; opacity: 1; }
+        /* 溫潤米白色系背景與基礎字體優化 */
+        body { 
+            background-color: #fcfbfa; 
+            color: #2c3e50;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 14px; 
+        }
+        
+        /* 質感導覽列 */
+        .navbar-custom {
+            background-color: #2d3748;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* 搜尋卡片區塊陰影與圓角 */
+        .search-card {
+            background-color: #ffffff;
+            border: 1px solid #eae6df !important;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        }
+
+        /*  테이블 樣式與柔和表頭 */
+        .table-custom {
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            border: 1px solid #eae6df;
+        }
+        .table-custom th { 
+            background-color: #f7f5ef; 
+            color: #4a5568; 
+            font-weight: 600; 
+            border-bottom: 2px solid #e2ded6 !important;
+        }
+        .table-custom th a { 
+            color: #4a5568; 
+            text-decoration: none; 
+            display: block; 
+        }
+        .table-custom th a:hover { 
+            color: #3182ce; 
+        }
+
+        /* 輸入框與提示字優化 */
+        .form-control, .form-select {
+            border-color: #d1cbd5;
+            background-color: #fffdf9;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #4a5568;
+            box-shadow: 0 0 0 0.2rem rgba(74, 85, 104, 0.15);
+            background-color: #ffffff;
+        }
+        input::placeholder { color: #a0aec0 !important; opacity: 1; }
     </style>
 </head>
-<body class="p-4">
-    <div class="container-fluid">
-        <h4 class="mb-3 border-bottom pb-2">Caenorhabditis elegans WS298 Gene Table Lookup</h4>
+<body>
+
+    <!-- 質感頂部導覽列 -->
+    <nav class="navbar navbar-dark navbar-custom px-4 mb-4">
+        <div class="container-fluid py-1">
+            <span class="navbar-brand mb-0 h5 fw-semibold">
+                🧬 <i>Caenorhabditis elegans</i> Gene Database
+            </span>
+            <span class="text-light opacity-75 small">WS298 Genome Release</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
         
-        <!-- 全欄位查詢與排序表單 -->
-        <form method="GET" action="" class="row g-3 mb-4 bg-white p-3 border rounded-1">
+        <!-- 查詢表單區塊 -->
+        <form method="GET" action="" class="row g-3 mb-4 p-4 search-card">
             <input type="hidden" name="sort" value="{{ sort_by }}">
             
             <div class="col-md-4">
-                <label class="form-label">WormBase ID:</label>
+                <label class="form-label fw-semibold text-secondary small">WormBase ID:</label>
                 <input type="text" name="wormbase_id" class="form-control form-control-sm" placeholder="e.g. WBGene00000001" value="{{ wormbase_id }}">
             </div>
             
-            <!-- Status 改為下拉選單 -->
             <div class="col-md-4">
-                <label class="form-label">Status:</label>
+                <label class="form-label fw-semibold text-secondary small">Status:</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">All Statuses</option>
                     <option value="Live" {% if status == 'Live' %}selected{% endif %}>Live</option>
@@ -38,23 +98,22 @@
             </div>
             
             <div class="col-md-4">
-                <label class="form-label">Sequence Name:</label>
+                <label class="form-label fw-semibold text-secondary small">Sequence Name:</label>
                 <input type="text" name="sequence_name" class="form-control form-control-sm" placeholder="e.g. Y110A7A.10" value="{{ sequence_name }}">
             </div>
 
             <div class="col-md-4">
-                <label class="form-label">Gene Name:</label>
+                <label class="form-label fw-semibold text-secondary small">Gene Name:</label>
                 <input type="text" name="gene_name" class="form-control form-control-sm" placeholder="e.g. aap-1" value="{{ gene_name }}">
             </div>
 
             <div class="col-md-4">
-                <label class="form-label">Other Name:</label>
+                <label class="form-label fw-semibold text-secondary small">Other Name:</label>
                 <input type="text" name="other_name" class="form-control form-control-sm" placeholder="e.g. CELE_Y110A7A.10" value="{{ other_name }}">
             </div>
 
-            <!-- Gene Type 改為下拉選單 -->
             <div class="col-md-4">
-                <label class="form-label">Gene Type:</label>
+                <label class="form-label fw-semibold text-secondary small">Gene Type:</label>
                 <select name="gene_type" class="form-select form-select-sm">
                     <option value="">All Gene Types</option>
                     <option value="protein_coding_gene" {% if gene_type == 'protein_coding_gene' %}selected{% endif %}>protein_coding_gene</option>
@@ -68,42 +127,42 @@
                 </select>
             </div>
             
-            <!-- 按鈕區：包含重置、匯出 CSV 與搜尋 -->
-            <div class="col-12 d-flex justify-content-end align-items-center">
-                <a href="?" class="btn btn-outline-secondary btn-sm me-2">Reset</a>
-                <button type="submit" name="export" value="1" class="btn btn-success btn-sm me-2">Export CSV</button>
-                <button type="submit" class="btn btn-primary btn-sm">Search</button>
+            <!-- 按鈕區 -->
+            <div class="col-12 d-flex justify-content-end align-items-center pt-2">
+                <a href="?" class="btn btn-outline-secondary btn-sm me-2 px-3">Reset</a>
+                <button type="submit" name="export" value="1" class="btn btn-success btn-sm me-2 px-3">Export CSV</button>
+                <button type="submit" class="btn btn-dark btn-sm px-4">Search</button>
             </div>
         </form>
 
-        <div class="mb-2 text-muted">
+        <div class="mb-3 text-muted small px-1">
             Found <strong>{{ total_count }}</strong> genes matching the criteria.
         </div>
 
-        <!-- 基因數據表格 (標題支援點擊排序) -->
+        <!-- 基因數據表格 -->
         {% if page_obj %}
         <div class="table-responsive">
-            <table class="table table-bordered table-hover table-sm table-custom">
+            <table class="table table-hover table-sm table-custom align-middle mb-4">
                 <thead>
                     <tr>
-                        <th>
+                        <th class="py-2 ps-3">
                             <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'wormbase_id' %}-wormbase_id{% else %}wormbase_id{% endif %}">
                                 WormBase ID {% if sort_by == 'wormbase_id' %}▲{% elif sort_by == '-wormbase_id' %}▼{% endif %}
                             </a>
                         </th>
-                        <th>
+                        <th class="py-2">
                             <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'status' %}-status{% else %}status{% endif %}">
                                 Status {% if sort_by == 'status' %}▲{% elif sort_by == '-status' %}▼{% endif %}
                             </a>
                         </th>
-                        <th>Sequence Name</th>
-                        <th>
+                        <th class="py-2">Sequence Name</th>
+                        <th class="py-2">
                             <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'gene_name' %}-gene_name{% else %}gene_name{% endif %}">
                                 Gene Name {% if sort_by == 'gene_name' %}▲{% elif sort_by == '-gene_name' %}▼{% endif %}
                             </a>
                         </th>
-                        <th>Other Name</th>
-                        <th>
+                        <th class="py-2">Other Name</th>
+                        <th class="py-2">
                             <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'gene_type' %}-gene_type{% else %}gene_type{% endif %}">
                                 Gene Type {% if sort_by == 'gene_type' %}▲{% elif sort_by == '-gene_type' %}▼{% endif %}
                             </a>
@@ -113,42 +172,41 @@
                 <tbody>
                     {% for gene in page_obj %}
                     <tr>
-                        <td>
-                            <!-- WormBase ID 轉為官方超連結 -->
-                            <a href="https://wormbase.org/species/c_elegans/gene/{{ gene.wormbase_id }}" target="_blank" title="View on WormBase">
+                        <td class="ps-3">
+                            <a href="https://wormbase.org/species/c_elegans/gene/{{ gene.wormbase_id }}" target="_blank" title="View on WormBase" class="text-decoration-none fw-medium text-primary">
                                 <code>{{ gene.wormbase_id }}</code> 🔗
                             </a>
                         </td>
                         <td>
-                            <span class="badge {% if gene.status == 'Live' %}bg-success{% elif gene.status == 'Dead' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">
+                            <span class="badge {% if gene.status == 'Live' %}bg-success{% elif gene.status == 'Dead' %}bg-secondary{% else %}bg-warning text-dark{% endif %} px-2 py-1">
                                 {{ gene.status }}
                             </span>
                         </td>
-                        <td>{{ gene.sequence_name }}</td>
-                        <td><strong>{{ gene.gene_name }}</strong></td>
-                        <td>{{ gene.other_name }}</td>
-                        <td>{{ gene.gene_type }}</td>
+                        <td class="text-secondary">{{ gene.sequence_name }}</td>
+                        <td><strong class="text-dark">{{ gene.gene_name }}</strong></td>
+                        <td class="text-muted">{{ gene.other_name }}</td>
+                        <td><span class="text-muted small">{{ gene.gene_type }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         {% else %}
-        <div class="alert alert-light border text-center py-4 text-muted">
+        <div class="alert alert-light border text-center py-4 text-muted search-card">
             No records found.
         </div>
         {% endif %}
 
         <!-- 分頁元件 -->
         {% if page_obj.has_other_pages %}
-        <nav>
+        <nav class="my-4">
             <ul class="pagination pagination-sm justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item"><a class="page-link" href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={{ sort_by }}&page=1">&laquo; First</a></li>
                     <li class="page-item"><a class="page-link" href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={{ sort_by }}&page={{ page_obj.previous_page_number }}">Previous</a></li>
                 {% endif %}
 
-                <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                <li class="page-item disabled"><span class="page-link text-secondary">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
 
                 {% if page_obj.has_next %}
                     <li class="page-item"><a class="page-link" href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={{ sort_by }}&page={{ page_obj.next_page_number }}">Next</a></li>
