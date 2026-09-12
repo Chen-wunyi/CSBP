@@ -27,22 +27,34 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
         }
 
-        /*  테이블 樣式與柔和表頭 */
+        /* 表格樣式：加入垂直與水平格線，並與背景拉開對比 */
         .table-custom {
             background-color: #ffffff;
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-            border: 1px solid #eae6df;
+            border: 1px solid #dcd6ce;
         }
         .table-custom th { 
-            background-color: #f7f5ef; 
-            color: #4a5568; 
-            font-weight: 600; 
-            border-bottom: 2px solid #e2ded6 !important;
+            background-color: #e2ded7; /* 加深表頭顏色，與背景和內容拉開對比 */
+            color: #1a202c; 
+            font-weight: 700; 
+            border-bottom: 2px solid #cbd5e0 !important;
+            border-right: 1px solid #cbd5e0 !important; /* 加上垂直分隔線 */
+            vertical-align: middle;
+        }
+        .table-custom th:last-child {
+            border-right: none;
+        }
+        .table-custom td {
+            border-right: 1px solid #edf2f7; /* 資料欄位之間的淡垂直線 */
+            vertical-align: middle;
+        }
+        .table-custom td:last-child {
+            border-right: none;
         }
         .table-custom th a { 
-            color: #4a5568; 
+            color: #2d3748; 
             text-decoration: none; 
             display: block; 
         }
@@ -66,12 +78,11 @@
 <body>
 
     <!-- 質感頂部導覽列 -->
-    <nav class="navbar navbar-dark navbar-custom px-4 mb-4">
-        <div class="container-fluid py-1">
+    <nav class="navbar navbar-dark navbar-custom px-4 mb-5">
+        <div class="container-fluid py-2">
             <span class="navbar-brand mb-0 h5 fw-semibold">
-                🧬 <i>Caenorhabditis elegans</i> Gene Database
+                🧬 Caenorhabditis elegans WS298 Gene Table Lookup
             </span>
-            <span class="text-light opacity-75 small">WS298 Genome Release</span>
         </div>
     </nav>
 
@@ -142,27 +153,27 @@
         <!-- 基因數據表格 -->
         {% if page_obj %}
         <div class="table-responsive">
-            <table class="table table-hover table-sm table-custom align-middle mb-4">
+            <table class="table table-bordered table-hover table-sm table-custom align-middle mb-4">
                 <thead>
                     <tr>
-                        <th class="py-2 ps-3">
+                        <th class="py-2.5 ps-3">
                             <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'wormbase_id' %}-wormbase_id{% else %}wormbase_id{% endif %}">
                                 WormBase ID {% if sort_by == 'wormbase_id' %}▲{% elif sort_by == '-wormbase_id' %}▼{% endif %}
                             </a>
                         </th>
-                        <th class="py-2">
+                        <th class="py-2.5 px-2">
                             <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'status' %}-status{% else %}status{% endif %}">
                                 Status {% if sort_by == 'status' %}▲{% elif sort_by == '-status' %}▼{% endif %}
                             </a>
                         </th>
-                        <th class="py-2">Sequence Name</th>
-                        <th class="py-2">
+                        <th class="py-2.5 px-2">Sequence Name</th>
+                        <th class="py-2.5 px-2">
                             <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'gene_name' %}-gene_name{% else %}gene_name{% endif %}">
                                 Gene Name {% if sort_by == 'gene_name' %}▲{% elif sort_by == '-gene_name' %}▼{% endif %}
                             </a>
                         </th>
-                        <th class="py-2">Other Name</th>
-                        <th class="py-2">
+                        <th class="py-2.5 px-2">Other Name</th>
+                        <th class="py-2.5 px-2">
                             <a href="?wormbase_id={{ wormbase_id }}&status={{ status }}&sequence_name={{ sequence_name }}&gene_name={{ gene_name }}&other_name={{ other_name }}&gene_type={{ gene_type }}&sort={% if sort_by == 'gene_type' %}-gene_type{% else %}gene_type{% endif %}">
                                 Gene Type {% if sort_by == 'gene_type' %}▲{% elif sort_by == '-gene_type' %}▼{% endif %}
                             </a>
@@ -172,20 +183,20 @@
                 <tbody>
                     {% for gene in page_obj %}
                     <tr>
-                        <td class="ps-3">
+                        <td class="ps-3 py-2">
                             <a href="https://wormbase.org/species/c_elegans/gene/{{ gene.wormbase_id }}" target="_blank" title="View on WormBase" class="text-decoration-none fw-medium text-primary">
                                 <code>{{ gene.wormbase_id }}</code> 🔗
                             </a>
                         </td>
-                        <td>
+                        <td class="px-2 py-2">
                             <span class="badge {% if gene.status == 'Live' %}bg-success{% elif gene.status == 'Dead' %}bg-secondary{% else %}bg-warning text-dark{% endif %} px-2 py-1">
                                 {{ gene.status }}
                             </span>
                         </td>
-                        <td class="text-secondary">{{ gene.sequence_name }}</td>
-                        <td><strong class="text-dark">{{ gene.gene_name }}</strong></td>
-                        <td class="text-muted">{{ gene.other_name }}</td>
-                        <td><span class="text-muted small">{{ gene.gene_type }}</span></td>
+                        <td class="text-secondary px-2 py-2">{{ gene.sequence_name }}</td>
+                        <td class="px-2 py-2"><strong class="text-dark">{{ gene.gene_name }}</strong></td>
+                        <td class="text-muted px-2 py-2">{{ gene.other_name }}</td>
+                        <td class="px-2 py-2"><span class="text-muted small">{{ gene.gene_type }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
