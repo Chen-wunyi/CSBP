@@ -4,7 +4,8 @@ from django.core.paginator import Paginator
 from .models import Gene
 import csv
 from django.http import HttpResponse
-
+import re
+from collections import defaultdict
 
 
 def lookup(request):
