@@ -83,7 +83,6 @@ def lookup(request):
     
     return render(request, 'hw1/main.html', context)
 
-
 def input_validation(request):
     raw_input = ""
     errors = []
@@ -91,14 +90,13 @@ def input_validation(request):
     
     if request.method == "POST":
         raw_input = request.POST.get("gene_input", "")
-        # 支援換行 (\r\n, \n)、逗號 (,)、Tab (\t) 切分輸入
+        # 切分換行 (\r\n, \n)、逗號 (,)、Tab (\t)
         tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
         
-        # 紀錄基因 ID 命中了哪幾個欄位：{ 'WBGene00000001': {'wormbase_id', 'gene_name', ...} }
         gene_matched_fields = defaultdict(set)
         
         for token in tokens:
-            # 比對所有可能的欄位 (不分大小寫比對)
+            # 比對所有欄位 (不分大小寫)
             matches = Gene.objects.filter(
                 Q(wormbase_id__iexact=token) |
                 Q(sequence_name__iexact=token) |
@@ -106,40 +104,35 @@ def input_validation(request):
                 Q(other_name__iexact=token)
             )
             
-            # 取得對應到的唯一 WormBase ID 列表
             distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
             
             if len(distinct_ids) == 0:
-                # 轉不出來
                 errors.append({
                     'input': token,
                     'message_title': 'Unknown name',
                     'detail': ''
                 })
             elif len(distinct_ids) > 1:
-                # 轉出多個 ID (例如 B0564.1)
                 errors.append({
                     'input': token,
                     'message_title': 'Multiple WormBase IDs found',
                     'detail': ",".join(distinct_ids)
                 })
             else:
-                # 唯一成功決定，自動納入去重集合
                 wb_id = distinct_ids[0]
                 gene_obj = matches.first()
-                
-                # 記錄該 token 命中了該筆資料的哪一個欄位，供前端標記黃底
                 token_lower = token.lower()
-                if gene_obj.wormbase_id and gene_obj.wormbase_id.lower() == token_lower:
+                
+                # 安全字串比對，防止欄位為 None 時引發 AttributeError
+                if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
                     gene_matched_fields[wb_id].add('wormbase_id')
-                if gene_obj.sequence_name and gene_obj.sequence_name.lower() == token_lower:
+                if (gene_obj.sequence_name or '').strip().lower() == token_lower:
                     gene_matched_fields[wb_id].add('sequence_name')
-                if gene_obj.gene_name and gene_obj.gene_name.lower() == token_lower:
+                if (gene_obj.gene_name or '').strip().lower() == token_lower:
                     gene_matched_fields[wb_id].add('gene_name')
-                if gene_obj.other_name and gene_obj.other_name.lower() == token_lower:
+                if (gene_obj.other_name or '').strip().lower() == token_lower:
                     gene_matched_fields[wb_id].add('other_name')
 
-        # 查出唯一合法的 Gene 清單並封裝成包含高亮欄位的字典
         if gene_matched_fields:
             genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
             for g in genes:
