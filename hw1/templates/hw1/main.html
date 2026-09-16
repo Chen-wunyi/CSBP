@@ -36,18 +36,18 @@
             border: 1px solid #dcd6ce;
         }
         .table-custom th { 
-            background-color: #e2ded7; /* 加深表頭顏色，與背景和內容拉開對比 */
+            background-color: #e2ded7;
             color: #1a202c; 
             font-weight: 700; 
             border-bottom: 2px solid #cbd5e0 !important;
-            border-right: 1px solid #cbd5e0 !important; /* 加上垂直分隔線 */
+            border-right: 1px solid #cbd5e0 !important;
             vertical-align: middle;
         }
         .table-custom th:last-child {
             border-right: none;
         }
         .table-custom td {
-            border-right: 1px solid #edf2f7; /* 資料欄位之間的淡垂直線 */
+            border-right: 1px solid #edf2f7;
             vertical-align: middle;
         }
         .table-custom td:last-child {
@@ -77,18 +77,22 @@
 </head>
 <body>
 
-    <!-- 質感頂部導覽列 -->
-    <nav class="navbar navbar-dark navbar-custom px-4 mb-5">
-        <div class="container-fluid py-2">
-            <span class="navbar-brand mb-0 h5 fw-semibold">
-                🧬 Caenorhabditis elegans WS298 Gene Table Lookup
-            </span>
+    <!-- 質感頂部導覽列 (加入頁面切換按鈕) -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom px-4 mb-4">
+        <div class="container-fluid py-1">
+            <a class="navbar-brand mb-0 h5 fw-semibold text-decoration-none" href="{% url 'lookup' %}">
+                🧬 Caenorhabditis elegans WS298 Gene Table
+            </a>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'lookup' %}" class="btn btn-outline-light btn-sm px-3 active">Gene Lookup</a>
+                <a href="{% url 'input_validation' %}" class="btn btn-outline-light btn-sm px-3">Input Validation</a>
+            </div>
         </div>
     </nav>
 
     <div class="container-fluid px-4">
         
-        <!-- 查詢表單區塊 -->
+        <!-- 輸入區塊 -->
         <form method="GET" action="" class="row g-3 mb-4 p-4 search-card">
             <input type="hidden" name="sort" value="{{ sort_by }}">
             
@@ -149,7 +153,7 @@
             Found <strong>{{ total_count }}</strong> genes matching the criteria.
         </div>
 
-        <!-- 基因數據表格 -->
+        <!-- 表格 -->
         {% if page_obj %}
         <div class="table-responsive">
             <table class="table table-bordered table-hover table-sm table-custom align-middle mb-4">

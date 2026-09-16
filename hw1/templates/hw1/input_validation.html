@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>Gene Input Validation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 延續原有的溫潤米白色系 */
+        body { 
+            background-color: #fcfbfa; 
+            color: #2c3e50;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 14px; 
+        }
+        
+        .navbar-custom {
+            background-color: #2d3748;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .card-custom {
+            background-color: #ffffff;
+            border: 1px solid #eae6df !important;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        }
+
+        .table-custom {
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            border: 1px solid #dcd6ce;
+        }
+        .table-custom th { 
+            background-color: #e2ded7;
+            color: #1a202c; 
+            font-weight: 700; 
+            border-bottom: 2px solid #cbd5e0 !important;
+            border-right: 1px solid #cbd5e0 !important;
+            vertical-align: middle;
+        }
+        .table-custom th:last-child { border-right: none; }
+        .table-custom td { border-right: 1px solid #edf2f7; vertical-align: middle; }
+        .table-custom td:last-child { border-right: none; }
+
+        /* 標記高亮格 (符合投影片中的黃底效果) */
+        .highlight-matched {
+            background-color: #ffff00 !important;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+            color: #000;
+        }
+
+        /* 錯誤報錯框頭部樣式 (貼合投影片紅色與深色表頭風格) */
+        .error-header-bar {
+            background-color: #e53e3e;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 10px 16px;
+            border-radius: 8px 8px 0 0;
+        }
+        .error-subhead-bar {
+            background-color: #2d3748;
+            color: #ffffff;
+            font-weight: 600;
+            padding: 8px 16px;
+        }
+
+        .form-control:focus {
+            border-color: #4a5568;
+            box-shadow: 0 0 0 0.2rem rgba(74, 85, 104, 0.15);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 頂部導覽列 -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom px-4 mb-4">
+        <div class="container-fluid py-1">
+            <a class="navbar-brand mb-0 h5 fw-semibold text-decoration-none" href="{% url 'lookup' %}">
+                🧬 Caenorhabditis elegans WS298 Gene Table
+            </a>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'lookup' %}" class="btn btn-outline-light btn-sm px-3">Gene Lookup</a>
+                <a href="{% url 'input_validation' %}" class="btn btn-outline-light btn-sm px-3 active">Input Validation</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-2">
+        
+        <!-- 輸入區塊 -->
+        <div class="card card-custom p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 text-dark">Input First Gene List (List 1)</h6>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-primary me-2 px-3" onclick="loadExample()">Load Example</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3" onclick="clearText()">Clear</button>
+                </div>
+            </div>
+
+            <form method="POST" action="{% url 'input_validation' %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <textarea id="gene_input" name="gene_input" class="form-control font-monospace" rows="6" placeholder="請輸入欲查詢的基因標識符...">{{ raw_input }}</textarea>
+                </div>
+                
+                <div class="text-secondary small mb-3">
+                    <div class="mb-1 text-muted">Accepted identifiers. Separate entries with line breaks, commas, or tabs.</div>
+                    <div>
+                        <span class="me-4"><strong>WormBase ID:</strong> <span class="text-danger">WBGene00000001</span></span>
+                        <span class="me-4"><strong>Sequence name:</strong> <span class="text-danger">Y110A7A.10</span></span>
+                        <span class="me-4"><strong>Gene name:</strong> <span class="text-danger">AAP-1</span></span>
+                        <span><strong>Other name / alias:</strong> <span class="text-danger">CELE_Y110A7A.10</span></span>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-dark btn-sm px-4">Validate & Resolve</button>
+            </form>
+        </div>
+
+        <!-- 上方框框：成功解析並去重後的表格 (若有命中則框起高亮) -->
+        {% if valid_genes %}
+        <div class="card card-custom p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 text-success">
+                    ✓ 轉換後結果 (Resolved Unique Genes: {{ valid_genes|length }} 筆)
+                </h6>
+                <small class="text-muted">已自動去重，並高亮命中輸入的識別欄位</small>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm table-custom align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-3 py-2">WormBase ID</th>
+                            <th class="px-2 py-2">Status</th>
+                            <th class="px-2 py-2">Sequence Name</th>
+                            <th class="px-2 py-2">Gene Name</th>
+                            <th class="px-2 py-2">Other Name</th>
+                            <th class="px-2 py-2">Gene Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in valid_genes %}
+                        <tr>
+                            <!-- WormBase ID 欄位 -->
+                            <td class="ps-3 py-2">
+                                {% if 'wormbase_id' in item.matched_fields %}
+                                    <span class="highlight-matched"><code>{{ item.obj.wormbase_id }}</code></span>
+                                {% else %}
+                                    <code>{{ item.obj.wormbase_id }}</code>
+                                {% endif %}
+                                <a href="https://wormbase.org/species/c_elegans/gene/{{ item.obj.wormbase_id }}" target="_blank" class="text-decoration-none ms-1">🔗</a>
+                            </td>
+                            
+                            <!-- Status 欄位 -->
+                            <td class="px-2 py-2">
+                                <span class="badge {% if item.obj.status == 'Live' %}bg-success{% elif item.obj.status == 'Dead' %}bg-secondary{% else %}bg-warning text-dark{% endif %} px-2 py-1">
+                                    {{ item.obj.status }}
+                                </span>
+                            </td>
+
+                            <!-- Sequence Name 欄位 -->
+                            <td class="px-2 py-2">
+                                {% if 'sequence_name' in item.matched_fields %}
+                                    <span class="highlight-matched">{{ item.obj.sequence_name }}</span>
+                                {% else %}
+                                    {{ item.obj.sequence_name }}
+                                {% endif %}
+                            </td>
+
+                            <!-- Gene Name 欄位 -->
+                            <td class="px-2 py-2">
+                                {% if 'gene_name' in item.matched_fields %}
+                                    <span class="highlight-matched">{{ item.obj.gene_name }}</span>
+                                {% else %}
+                                    <strong>{{ item.obj.gene_name }}</strong>
+                                {% endif %}
+                            </td>
+
+                            <!-- Other Name 欄位 -->
+                            <td class="px-2 py-2">
+                                {% if 'other_name' in item.matched_fields %}
+                                    <span class="highlight-matched">{{ item.obj.other_name }}</span>
+                                {% else %}
+                                    <span class="text-muted">{{ item.obj.other_name }}</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Gene Type 欄位 -->
+                            <td class="px-2 py-2 text-muted small">
+                                {{ item.obj.gene_type }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 下方框框：錯誤回報區塊 (Input Validation Error) -->
+        {% if errors %}
+        <div class="card card-custom p-0 mb-4 overflow-hidden border-danger">
+            <div class="error-header-bar">
+                Input Validation Error
+            </div>
+            <div class="p-3 bg-white">
+                <p class="text-secondary small mb-3">
+                    <strong>Input genes include unknown names, names with multiple IDs, or multiple identifiers for the same WormBase gene.</strong><br>
+                    Review the issues below, then edit your input or automatically resolve valid entries to unique WormBase IDs.
+                </p>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle mb-0">
+                        <thead>
+                            <tr class="table-light">
+                                <th style="width: 35%;" class="ps-3">Input Data</th>
+                                <th>Validation Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="error-subhead-bar">
+                                <td colspan="2" class="ps-3 py-1 small">INPUT 1</td>
+                            </tr>
+                            {% for err in errors %}
+                            <tr>
+                                <td class="ps-3 fw-medium"><code>{{ err.input }}</code></td>
+                                <td>
+                                    <div>{{ err.message_title }}</div>
+                                    {% if err.detail %}
+                                        <div class="text-primary small fw-semibold">{{ err.detail }}</div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <script>
+        function loadExample() {
+            // 載入投影片中的驗證示範資料
+            document.getElementById('gene_input').value = "WBGene00000001\nY110A7A.10\naap-1\nxxx\nB0564.1";
+        }
+        function clearText() {
+            document.getElementById('gene_input').value = "";
+        }
+    </script>
+</body>
+</html>

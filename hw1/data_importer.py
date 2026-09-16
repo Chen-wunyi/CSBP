@@ -5,16 +5,17 @@ from pathlib import Path
 import pandas as pd
 import django
 
-# 將專案根目錄 (CSBP) 加入 Python 模組搜尋路徑
+#將專案根目錄CSBP加入Python的模組搜尋路徑中，確保能夠順利載入Django設定
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 
-# 設定 Django 環境
+# 設定Django環境
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from hw1.models import Gene
 
+#在不同的可能路徑中尋找基因資料檔案
 def find_file(filenames):
     for fname in filenames:
         candidates = [
@@ -44,7 +45,7 @@ def run_import():
 
     print(f"正在讀取並清理: {file_ids} ...")
     
-    # 讀取檔案並去除每一行外層包覆的雙引號
+    #讀取檔案，逐行去除前後空白、將外層雙引號刪掉，再放入列表   
     cleaned_lines = []
     with open(file_ids, 'r', encoding='utf-8') as f:
         for line in f:
@@ -53,6 +54,7 @@ def run_import():
                 line = line[1:-1]
             cleaned_lines.append(line)
 
+    #將字串轉為 DataFrame，並指定欄位名稱與資料型態全部視為字串，避免 ID 前面的零遺失
     cols_ids = ['tax_id', 'wormbase_id', 'gene_name', 'sequence_name', 'status', 'gene_type']
     df_ids = pd.read_csv(
         io.StringIO('\n'.join(cleaned_lines)),
@@ -84,6 +86,7 @@ def run_import():
     print("清理舊資料並批次寫入資料庫...")
     Gene.objects.all().delete()
 
+    #將Pandas的每一列轉換為Django的Gene物件
     batch_size = 5000
     genes_to_create = [
         Gene(
@@ -96,8 +99,9 @@ def run_import():
         )
         for _, row in merged.iterrows()
     ]
-
+    #使用Django的批次建立方法bulk_create，可減少資料庫連線次數，快速寫入資料
     Gene.objects.bulk_create(genes_to_create, batch_size=batch_size)
+    
     print("匯入成功完成！")
 
 if __name__ == '__main__':
