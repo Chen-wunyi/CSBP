@@ -6,8 +6,6 @@
     <title>Calculate - Gene Analysis Tool</title>
     <!-- 引入 Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- 引入 SweetAlert2 防呆提示框套件 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body {
             background-color: #f8f9fa;
@@ -27,17 +25,16 @@
 
     <!-- 頂部導覽列 (Navbar) -->
     <nav class="navbar navbar-expand-lg navbar-dark navbar-custom px-4 mb-4">
-        <a class="navbar-brand fw-bold" href="#">Caenorhabditis elegans WS298 Gene Table</a>
+        <a class="navbar-brand fw-bold" href="{% url 'lookup' %}">Caenorhabditis elegans WS298 Gene Table</a>
         <div class="ms-auto">
             <a href="{% url 'lookup' %}" class="btn btn-outline-light btn-sm me-2">Gene Lookup</a>
-            <a href="{% url 'input_validation' %}" class="btn btn-light btn-sm text-dark fw-bold">Input Validation</a>
+            <a href="{% url 'input_validation' %}" class="btn btn-light btn-sm text-dark fw-bold">Calculate</a>
         </div>
     </nav>
 
     <div class="container my-4">
         <h4 class="mb-4 text-primary fw-bold">📄 Compare Quantitative Features Between Gene List</h4>
 
-        <!-- 表單提交至 input_validation 或對應的 views 函數 -->
         <form method="POST" id="calculateForm">
             {% csrf_token %}
             <div class="row">
@@ -55,22 +52,22 @@
                                     <button type="button" class="btn btn-outline-secondary btn-sm" id="clearBtn">Clear</button>
                                 </div>
                             </div>
-                            <textarea class="form-control" name="gene_input" id="gene_input" rows="9" placeholder="Enter genes here...">{{ raw_input }}</textarea>
+                            <textarea class="form-control" name="gene_input" id="gene_input" rows="8" placeholder="Enter genes here...">{{ raw_input }}</textarea>
                             <div class="form-text mt-3" style="font-size: 0.85rem;">
                                 Accepted identifiers. Separate entries with line breaks, commas, or tabs.<br>
-                                <span class="text-danger">WormBase ID: WBGene00000001 &nbsp; Sequence name: Y110A7.10 &nbsp; Gene name: AAP-1 &nbsp; Other name: CELE_Y110A7.10</span>
+                                <span class="text-danger">WormBase ID: WBGene00000001 &nbsp; Sequence name: Y110A7.10 &nbsp; Gene name: AAP-1</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Step 2: 僅保留 # rna isoform (已拿掉 Step 3) -->
+                <!-- Step 2: 僅保留 # rna isoform -->
                 <div class="col-md-5">
                     <div class="card shadow-sm mb-4">
                         <div class="card-header">
                             Step 2. Select the Quantitative Feature to be Analyzed
                         </div>
-                        <div class="card-body" style="min-height: 255px;">
+                        <div class="card-body" style="min-height: 235px;">
                             <div class="form-check mt-3">
                                 <input class="form-check-input" type="checkbox" name="features" value="rna_isoform" id="rnaIsoform" checked>
                                 <label class="form-check-label fw-semibold" for="rnaIsoform">
@@ -89,57 +86,79 @@
         </form>
     </div>
 
-    <!-- JavaScript：防呆提示與互動邏輯 -->
+    <!-- Bootstrap 原生防呆提示 Modal (彈出視窗) -->
+    <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="errorModalLabel">⚠️ 輸入驗證失敗</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2 text-secondary">偵測到以下基因名稱有誤或無法辨識：</p>
+                    <ul id="errorListContent" class="text-danger" style="max-height: 200px; overflow-y: auto; font-size: 0.9rem;">
+                        <!-- 錯誤清單會透過 JavaScript 自動填入 -->
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <!-- 點擊後會關閉對話框，並自動讓使用者回去重新編輯 -->
+                    <button type="button" class="btn btn-dark w-100" id="backToEditBtn" data-bs-dismiss="modal">回去重新編輯</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 利用 Django 的 json_script 安全地將後端 errors 資料轉成前端 JSON 格式，完全不會有編輯器紅字 -->
+    {{ errors|json_script:"error-data" }}
+
+    <!-- 引入 Bootstrap 5 JS Bundle (包含 Popper，用於驅動 Modal) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 純 JavaScript 邏輯 -->
     <script>
-        // Load Example 按鈕範例填入功能（可自由選配）
+        // Load Example 按鈕
         document.getElementById('loadExampleBtn').addEventListener('click', function() {
             document.getElementById('gene_input').value = "WBGene00000001\nY110A7.10\nAAP-1";
         });
 
-        // Clear 按鈕清除功能
+        // Clear 按鈕
         document.getElementById('clearBtn').addEventListener('click', function() {
             document.getElementById('gene_input').value = "";
             document.getElementById('gene_input').focus();
         });
 
-        // 後端傳遞過來的錯誤清單 (透過 Django template 渲染)
+        // 頁面載入後檢查後端是否有傳遞錯誤
         document.addEventListener("DOMContentLoaded", function() {
-            const errors = [
-                {% for err in errors %}
-                {
-                    input: "{{ err.input|escapejs }}",
-                    title: "{{ err.message_title|escapejs }}",
-                    detail: "{{ err.detail|escapejs }}"
-                },
-                {% endfor %}
-            ];
+            // 從 json_script 安全讀取後端傳來的錯誤資料
+            const errors = JSON.parse(document.getElementById('error-data').textContent);
 
-            if (errors.length > 0) {
-                let errorHtml = `<div class="text-start mb-2 text-danger">偵測到以下輸入有誤或無法辨識：</div>`;
-                errorHtml += `<ul class="text-start" style="max-height: 180px; overflow-y: auto; font-size: 0.9rem;">`;
+            if (errors && errors.length > 0) {
+                // 將錯誤訊息動態加入 Modal 的列表裡
+                const errorListUl = document.getElementById('errorListContent');
+                errorListUl.innerHTML = ""; // 清空舊內容
+                
                 errors.forEach(e => {
-                    errorHtml += `<li><b>${e.input}</b>: ${e.title} ${e.detail ? '(' + e.detail + ')' : ''}</li>`;
+                    const li = document.createElement('li');
+                    li.innerHTML = `<b>${e.input}</b>: ${e.message_title} ${e.detail ? '(' + e.detail + ')' : ''}`;
+                    errorListUl.appendChild(li);
                 });
-                errorHtml += `</ul>`;
 
-                // 彈出防呆提示小框
-                Swal.fire({
-                    icon: 'warning',
-                    title: '輸入驗證失敗',
-                    html: errorHtml,
-                    confirmButtonText: '回去重新編輯',
-                    confirmButtonColor: '#2c3e50',
-                    allowOutsideClick: false
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // 使用者點擊按鈕後，自動將焦點移回輸入框以便重新編輯
-                        const inputArea = document.getElementById('gene_input');
-                        inputArea.focus();
-                        inputArea.select();
-                    }
-                });
+                // 顯示 Bootstrap Modal
+                const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+                errorModal.show();
             }
         });
+
+        // 當點擊「回去重新編輯」按鈕關閉視窗後，自動將焦點移回輸入框
+        const backBtn = document.getElementById('backToEditBtn');
+        if (backBtn) {
+            backBtn.addEventListener('click', function() {
+                const inputArea = document.getElementById('gene_input');
+                if (inputArea) {
+                    inputArea.focus();
+                    inputArea.select();
+                }
+            });
+        }
     </script>
 </body>
 </html>
