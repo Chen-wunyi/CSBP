@@ -77,7 +77,7 @@
 </head>
 <body>
 
-    <!-- 質感頂部導覽列 (加入頁面切換按鈕) -->
+    <!-- 質感頂部導覽列 (已將 Input Validation 改為 Calculate) -->
     <nav class="navbar navbar-expand-lg navbar-dark navbar-custom px-4 mb-4">
         <div class="container-fluid py-1">
             <a class="navbar-brand mb-0 h5 fw-semibold text-decoration-none" href="{% url 'lookup' %}">
@@ -85,7 +85,8 @@
             </a>
             <div class="d-flex align-items-center gap-2">
                 <a href="{% url 'lookup' %}" class="btn btn-outline-light btn-sm px-3 active">Gene Lookup</a>
-                <a href="{% url 'input_validation' %}" class="btn btn-outline-light btn-sm px-3">Input Validation</a>
+                <!-- 修改處：將連結與按鈕名稱改為 calculate -->
+                <a href="{% url 'input_validation' %}" class="btn btn-outline-light btn-sm px-3">Calculate</a>
             </div>
         </div>
     </nav>
