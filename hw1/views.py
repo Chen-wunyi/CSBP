@@ -147,3 +147,70 @@ def input_validation(request):
         'errors': errors,
         'valid_genes': valid_genes
     })
+
+
+
+def calculate(request):
+    raw_input = ""
+    errors = []
+    valid_genes = []
+    
+    if request.method == "POST":
+        raw_input = request.POST.get("gene_input", "")
+        #切分換行 (\r\n, \n)、逗號 (,)、Tab (\t)
+        tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
+        
+        gene_matched_fields = defaultdict(set)
+        
+        for token in tokens:
+            #比對所有欄位 (不分大小寫)
+            matches = Gene.objects.filter(
+                Q(wormbase_id__iexact=token) |
+                Q(sequence_name__iexact=token) |
+                Q(gene_name__iexact=token) |
+                Q(other_name__iexact=token)
+            )
+            
+            distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
+            
+            if len(distinct_ids) == 0:
+                errors.append({
+                    'input': token,
+                    'message_title': 'Unknown name',
+                    'detail': ''
+                })
+            elif len(distinct_ids) > 1:
+                errors.append({
+                    'input': token,
+                    'message_title': 'Multiple WormBase IDs found',
+                    'detail': ",".join(distinct_ids)
+                })
+            else:
+                wb_id = distinct_ids[0]
+                gene_obj = matches.first()
+                token_lower = token.lower()
+                
+                # 安全字串比對，防止欄位為 None 時引發 AttributeError
+                if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('wormbase_id')
+                if (gene_obj.sequence_name or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('sequence_name')
+                if (gene_obj.gene_name or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('gene_name')
+                if (gene_obj.other_name or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('other_name')
+
+        if gene_matched_fields:
+            genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
+            for g in genes:
+                valid_genes.append({
+                    'obj': g,
+                    'matched_fields': gene_matched_fields[g.wormbase_id]
+                })
+
+    # 確保這裡回傳的是你的 calculate.html
+    return render(request, 'hw1/calculate.html', {
+        'raw_input': raw_input,
+        'errors': errors,
+        'valid_genes': valid_genes
+    })
