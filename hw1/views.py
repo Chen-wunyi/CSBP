@@ -91,13 +91,13 @@ def input_validation(request):
     
     if request.method == "POST":
         raw_input = request.POST.get("gene_input", "")
-        # 切分換行 (\r\n, \n)、逗號 (,)、Tab (\t)
+        #切分換行 (\r\n, \n)、逗號 (,)、Tab (\t)
         tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
         
         gene_matched_fields = defaultdict(set)
         
         for token in tokens:
-            # 比對所有欄位 (不分大小寫)
+            #比對所有欄位 (不分大小寫)
             matches = Gene.objects.filter(
                 Q(wormbase_id__iexact=token) |
                 Q(sequence_name__iexact=token) |

@@ -6,7 +6,7 @@ urlpatterns = [
     path('', views.lookup, name='lookup'),
     path('lookup/', views.lookup, name='gene_lookup'),
     path('input-validation/', views.input_validation, name='input_validation'),
-
+    path('calculate/', views.calculate, name='calculate'),
 ]
 
 

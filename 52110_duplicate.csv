@@ -1,0 +1,167 @@
+column,name,count,wormbase_ids,source_columns
+Cross-field normalized alias,21UR-14297,2,"WBGENE00003296,WBGENE00046903",Other name
+Cross-field normalized alias,ACOX-3,2,"WBGENE00008566,WBGENE00019060","Gene name, Other name"
+Cross-field normalized alias,ACOX-6,2,"WBGENE00010336,WBGENE00019060",Other name
+Cross-field normalized alias,AGL-1,2,"WBGENE00008775,WBGENE00011050","Gene name, Other name"
+Cross-field normalized alias,AMPK,2,"WBGENE00019801,WBGENE00020142",Other name
+Cross-field normalized alias,ARL-5,2,"WBGENE00000189,WBGENE00001358","Gene name, Other name"
+Cross-field normalized alias,ARL-6,2,"WBGENE00000190,WBGENE00000193","Gene name, Other name"
+Cross-field normalized alias,ATG-2,2,"WBGENE00000225,WBGENE00019748","Gene name, Other name"
+Cross-field normalized alias,AXIN,2,"WBGENE00004202,WBGENE00010497",Other name
+Cross-field normalized alias,B0524.7,2,"WBGENE00044647,WBGENE00195367","Other name, Sequence name"
+Cross-field normalized alias,B0564.1,2,"WBGENE00007201,WBGENE00044083",Sequence name
+Cross-field normalized alias,BAH-2,2,"WBGENE00017577,WBGENE00050876","Gene name, Other name"
+Cross-field normalized alias,BOP-1,2,"WBGENE00003394,WBGENE00012978","Gene name, Other name"
+Cross-field normalized alias,BUS-10,2,"WBGENE00014008,WBGENE00044624","Gene name, Other name"
+Cross-field normalized alias,BUS-22,2,"WBGENE00018133,WBGENE00303141","Gene name, Other name"
+Cross-field normalized alias,BUS-24,2,"WBGENE00012433,WBGENE00206472","Gene name, Other name"
+Cross-field normalized alias,BUS-28,2,"WBGENE00019761,WBGENE00303143","Gene name, Other name"
+Cross-field normalized alias,BUS-6,2,"WBGENE00018697,WBGENE00044622","Gene name, Other name"
+Cross-field normalized alias,C05A9.3,2,"WBGENE00007318,WBGENE00196216","Other name, Sequence name"
+Cross-field normalized alias,C05A9.4,2,"WBGENE00077702,WBGENE00197473","Other name, Sequence name"
+Cross-field normalized alias,C08E8.11,2,"WBGENE00119200,WBGENE00119201","Other name, Sequence name"
+Cross-field normalized alias,C30D11.2,2,"WBGENE00007815,WBGENE00199655","Other name, Sequence name"
+Cross-field normalized alias,C30D11.3,2,"WBGENE00044231,WBGENE00200316","Other name, Sequence name"
+Cross-field normalized alias,CAH-1,2,"WBGENE00000279,WBGENE00000294","Gene name, Other name"
+Cross-field normalized alias,CAT-6,2,"WBGENE00000300,WBGENE00009326","Gene name, Other name"
+Cross-field normalized alias,CEGRIP,2,"WBGENE00001589,WBGENE00006815",Other name
+Cross-field normalized alias,CELE_F35F10.18,2,"WBGENE00018054,WBGENE00269374",Other name
+Cross-field normalized alias,CEP-1,3,"WBGENE00000366,WBGENE00000467,WBGENE00004048","Gene name, Other name"
+Cross-field normalized alias,CERPA,2,"WBGENE00017546,WBGENE00019767",Other name
+Cross-field normalized alias,CHS-1,2,"WBGENE00000496,WBGENE00000497","Gene name, Other name"
+Cross-field normalized alias,CKA-1,2,"WBGENE00000509,WBGENE00003830","Gene name, Other name"
+Cross-field normalized alias,CLC-1,2,"WBGENE00000522,WBGENE00020246","Gene name, Other name"
+Cross-field normalized alias,COL-117,2,"WBGENE00000594,WBGENE00000691","Gene name, Other name"
+Cross-field normalized alias,COL-3,2,"WBGENE00000594,WBGENE00000691","Gene name, Other name"
+Cross-field normalized alias,CONE-1,2,"WBGENE00000464,WBGENE00306126","Gene name, Other name"
+Cross-field normalized alias,CPI-1,2,"WBGENE00000535,WBGENE00000775","Gene name, Other name"
+Cross-field normalized alias,CRF-1,2,"WBGENE00003600,WBGENE00019160",Other name
+Cross-field normalized alias,CSR-1,2,"WBGENE00003637,WBGENE00017641","Gene name, Other name"
+Cross-field normalized alias,7-Dec,2,"WBGENE00000945,WBGENE00010540",Gene name
+Cross-field normalized alias,DYF-10,2,"WBGENE00001126,WBGENE00006531","Gene name, Other name"
+Cross-field normalized alias,E01H11.4,2,"WBGENE00044688,WBGENE00197169","Other name, Sequence name"
+Cross-field normalized alias,EAT-9,2,"WBGENE00001140,WBGENE00008610","Gene name, Other name"
+Cross-field normalized alias,EGC-3,2,"WBGENE00019100,WBGENE00019129","Gene name, Other name"
+Cross-field normalized alias,EIF2ALPHA,2,"WBGENE00008480,WBGENE00021351",Other name
+Cross-field normalized alias,ELF-1,2,"WBGENE00001159,WBGENE00016029","Gene name, Other name"
+Cross-field normalized alias,ENT-4,2,"WBGENE00008123,WBGENE00009686","Gene name, Other name"
+Cross-field normalized alias,ENT-6,2,"WBGENE00008123,WBGENE00009499","Gene name, Other name"
+Cross-field normalized alias,ENT-7,2,"WBGENE00009499,WBGENE00009686","Gene name, Other name"
+Cross-field normalized alias,ERI-8,2,"WBGENE00019971,WBGENE00219543","Gene name, Other name"
+Cross-field normalized alias,F15B9.15,2,"WBGENE00219382,WBGENE00235323","Other name, Sequence name"
+Cross-field normalized alias,F20H11.6,2,"WBGENE00017649,WBGENE00198998","Other name, Sequence name"
+Cross-field normalized alias,F22D6.18,2,"WBGENE00077774,WBGENE00197772","Other name, Sequence name"
+Cross-field normalized alias,F32H5.8,2,"WBGENE00009351,WBGENE00202128","Other name, Sequence name"
+Cross-field normalized alias,F40F12.10,2,"WBGENE00044890,WBGENE00195314","Other name, Sequence name"
+Cross-field normalized alias,F42H10.9,2,"WBGENE00018372,WBGENE00195791","Other name, Sequence name"
+Cross-field normalized alias,F47D12.10,2,"WBGENE00044635,WBGENE00199319","Other name, Sequence name"
+Cross-field normalized alias,F49F1.2,2,"WBGENE00043346,WBGENE00235363","Other name, Sequence name"
+Cross-field normalized alias,F49F1.4,2,"WBGENE00043347,WBGENE00235364","Other name, Sequence name"
+Cross-field normalized alias,F55C12.2,3,"WBGENE00018870,WBGENE00043362,WBGENE00044426","Other name, Sequence name"
+Cross-field normalized alias,F57G12.3,2,"WBGENE00164975,WBGENE00195843","Other name, Sequence name"
+Cross-field normalized alias,F59F5.8,2,"WBGENE00010346,WBGENE00200147","Other name, Sequence name"
+Cross-field normalized alias,FER-2,2,"WBGENE00001415,WBGENE00012933","Gene name, Other name"
+Cross-field normalized alias,FRS-2,2,"WBGENE00001498,WBGENE00006786",Other name
+Cross-field normalized alias,H01A20.2,2,"WBGENE00010347,WBGENE00196986","Other name, Sequence name"
+Cross-field normalized alias,H20J04.8,3,"WBGENE00003390,WBGENE00019223,WBGENE00044076","Other name, Sequence name"
+Cross-field normalized alias,HIP-1,2,"WBGENE00011735,WBGENE00022717","Gene name, Other name"
+Cross-field normalized alias,HSP-16,6,"WBGENE00002015,WBGENE00002016,WBGENE00002017,WBGENE00002018,WBGENE00002019,WBGENE00002020",Other name
+Cross-field normalized alias,HXK-1,2,"WBGENE00008780,WBGENE00022306","Gene name, Other name"
+Cross-field normalized alias,INS-1,2,"WBGENE00002084,WBGENE00002101","Gene name, Other name"
+Cross-field normalized alias,INS-2,2,"WBGENE00002085,WBGENE00002100","Gene name, Other name"
+Cross-field normalized alias,K04C2.A,2,"WBGENE00000265,WBGENE00019380",Other name
+Cross-field normalized alias,K12H6.10,2,"WBGENE00043428,WBGENE00044368","Other name, Sequence name"
+Cross-field normalized alias,KAP-1,2,"WBGENE00000101,WBGENE00002182","Gene name, Other name"
+Cross-field normalized alias,KIN-5,2,"WBGENE00002193,WBGENE00002196","Gene name, Other name"
+Cross-field normalized alias,LET-209,2,"WBGENE00004512,WBGENE00004513",Other name
+Cross-field normalized alias,LET-479,2,"WBGENE00002689,WBGENE00019667","Gene name, Other name"
+Cross-field normalized alias,LET-821,2,"WBGENE00002928,WBGENE00022816","Gene name, Other name"
+Cross-field normalized alias,LIN-15,3,"WBGENE00003004,WBGENE00023497,WBGENE00023498","Gene name, Other name"
+Cross-field normalized alias,MAD-1,2,"WBGENE00001979,WBGENE00003160",Other name
+Cross-field normalized alias,MAD-2,2,"WBGENE00003121,WBGENE00003161","Gene name, Other name"
+Cross-field normalized alias,MDH-1,2,"WBGENE00003162,WBGENE00018491","Gene name, Other name"
+Cross-field normalized alias,MDT-28,2,"WBGENE00007024,WBGENE00009223","Gene name, Other name"
+Cross-field normalized alias,MEKK-3,2,"WBGENE00013694,WBGENE00017578","Gene name, Other name"
+Cross-field normalized alias,MIP-1,2,"WBGENE00007219,WBGENE00008005","Gene name, Other name"
+Cross-field normalized alias,MOB-1,2,"WBGENE00008601,WBGENE00009551","Gene name, Other name"
+Cross-field normalized alias,MOD-1,2,"WBGENE00001009,WBGENE00003386","Gene name, Other name"
+Cross-field normalized alias,NFX-1,2,"WBGENE00003834,WBGENE00007048","Gene name, Other name"
+Cross-field normalized alias,NOG-1,2,"WBGENE00004422,WBGENE00020297","Gene name, Other name"
+Cross-field normalized alias,ORF1,2,"WBGENE00011344,WBGENE00014021",Other name
+Cross-field normalized alias,PACS-1,2,"WBGENE00015116,WBGENE00044077","Gene name, Other name"
+Cross-field normalized alias,PEX-1,2,"WBGENE00002240,WBGENE00004191",Other name
+Cross-field normalized alias,PRP-4,2,"WBGENE00004186,WBGENE00007972","Gene name, Other name"
+Cross-field normalized alias,PSF-1,2,"WBGENE00011275,WBGENE00017778","Gene name, Other name"
+Cross-field normalized alias,PTP-1,2,"WBGENE00004213,WBGENE00004215","Gene name, Other name"
+Cross-field normalized alias,R07B1.8,2,"WBGENE00001608,WBGENE00011080","Other name, Sequence name"
+Cross-field normalized alias,R08D7.8,2,"WBGENE00011148,WBGENE00199513","Other name, Sequence name"
+Cross-field normalized alias,R09A8.6,2,"WBGENE00138710,WBGENE00195938","Other name, Sequence name"
+Cross-field normalized alias,R151.8A,2,"WBGENE00020106,WBGENE00020113",Other name
+Cross-field normalized alias,RAP-1,2,"WBGENE00004307,WBGENE00004507","Gene name, Other name"
+Cross-field normalized alias,REF-1,2,"WBGENE00000120,WBGENE00004334","Gene name, Other name"
+Cross-field normalized alias,REF-2,2,"WBGENE00000121,WBGENE00004335","Gene name, Other name"
+Cross-field normalized alias,RIP-1,2,"WBGENE00010059,WBGENE00010973","Gene name, Other name"
+Cross-field normalized alias,RPL-8,2,"WBGENE00004413,WBGENE00004419","Gene name, Other name"
+Cross-field normalized alias,RRP-1,2,"WBGENE00004307,WBGENE00008151","Gene name, Other name"
+Cross-field normalized alias,SER-1,2,"WBGENE00004736,WBGENE00004776","Gene name, Other name"
+Cross-field normalized alias,SLO-1,2,"WBGENE00004828,WBGENE00004830","Gene name, Other name"
+Cross-field normalized alias,SN2524,3,"WBGENE00189971,WBGENE00189972,WBGENE00189973",Other name
+Cross-field normalized alias,SOX,2,"WBGENE00015783,WBGENE00015788",Other name
+Cross-field normalized alias,SPE-7,2,"WBGENE00004961,WBGENE00009308","Gene name, Other name"
+Cross-field normalized alias,SRF-2,2,"WBGENE00005152,WBGENE00010327","Gene name, Other name"
+Cross-field normalized alias,SRF-5,2,"WBGENE00005155,WBGENE00010033","Gene name, Other name"
+Cross-field normalized alias,SRG-52,2,"WBGENE00005209,WBGENE00045309","Gene name, Other name"
+Cross-field normalized alias,SRP-1,2,"WBGENE00004703,WBGENE00005642","Gene name, Other name"
+Cross-field normalized alias,SRP-2,2,"WBGENE00004701,WBGENE00005643","Gene name, Other name"
+Cross-field normalized alias,SRP-3,2,"WBGENE00004702,WBGENE00005644","Gene name, Other name"
+Cross-field normalized alias,SRP-4,2,"WBGENE00004699,WBGENE00005644",Other name
+Cross-field normalized alias,SRP-5,2,"WBGENE00004698,WBGENE00005646","Gene name, Other name"
+Cross-field normalized alias,SUE-1,2,"WBGENE00006306,WBGENE00006354","Gene name, Other name"
+Cross-field normalized alias,SUP-13,2,"WBGENE00006322,WBGENE00014033","Gene name, Other name"
+Cross-field normalized alias,SUSM-1,2,"WBGENE00011437,WBGENE00268195","Gene name, Other name"
+Cross-field normalized alias,T10B11.9,2,"WBGENE00020405,WBGENE00196234","Other name, Sequence name"
+Cross-field normalized alias,T10E10.A,2,"WBGENE00000744,WBGENE00015381",Other name
+Cross-field normalized alias,TKR-1,2,"WBGENE00003862,WBGENE00006576","Gene name, Other name"
+Cross-field normalized alias,TKR-2,2,"WBGENE00003863,WBGENE00016761","Gene name, Other name"
+Cross-field normalized alias,TWK-1,2,"WBGENE00006656,WBGENE00006660","Gene name, Other name"
+Cross-field normalized alias,TWK-10,2,"WBGENE00006665,WBGENE00006684","Gene name, Other name"
+Cross-field normalized alias,TWK-11,2,"WBGENE00006666,WBGENE00006677","Gene name, Other name"
+Cross-field normalized alias,TWK-12,2,"WBGENE00006667,WBGENE00006669","Gene name, Other name"
+Cross-field normalized alias,TWK-13,2,"WBGENE00006668,WBGENE00006678","Gene name, Other name"
+Cross-field normalized alias,TWK-14,2,"WBGENE00006658,WBGENE00006669","Gene name, Other name"
+Cross-field normalized alias,TWK-16,2,"WBGENE00006670,WBGENE00006674","Gene name, Other name"
+Cross-field normalized alias,TWK-17,2,"WBGENE00006671,WBGENE00006675","Gene name, Other name"
+Cross-field normalized alias,TWK-18,2,"WBGENE00006672,WBGENE00006792","Gene name, Other name"
+Cross-field normalized alias,TWK-20,2,"WBGENE00006659,WBGENE00006673","Gene name, Other name"
+Cross-field normalized alias,TWK-21,2,"WBGENE00006664,WBGENE00006674","Gene name, Other name"
+Cross-field normalized alias,TWK-23,2,"WBGENE00006318,WBGENE00006676","Gene name, Other name"
+Cross-field normalized alias,TWK-24,2,"WBGENE00006665,WBGENE00006677","Gene name, Other name"
+Cross-field normalized alias,TWK-3,2,"WBGENE00006658,WBGENE00006679","Gene name, Other name"
+Cross-field normalized alias,TWK-5,2,"WBGENE00006660,WBGENE00006661","Gene name, Other name"
+Cross-field normalized alias,TWK-6,2,"WBGENE00006661,WBGENE00006676","Gene name, Other name"
+Cross-field normalized alias,TWK-7,2,"WBGENE00006656,WBGENE00006662","Gene name, Other name"
+Cross-field normalized alias,TWK-8,2,"WBGENE00006662,WBGENE00006663","Gene name, Other name"
+Cross-field normalized alias,TWK-9,2,"WBGENE00006664,WBGENE00006667","Gene name, Other name"
+Cross-field normalized alias,U1,6,"WBGENE00006315,WBGENE00014316,WBGENE00014317,WBGENE00014370,WBGENE00014371,WBGENE00014511",Other name
+Cross-field normalized alias,U2,8,"WBGENE00014288,WBGENE00014312,WBGENE00014335,WBGENE00014336,WBGENE00014483,WBGENE00014577,WBGENE00014589,WBGENE00235206",Other name
+Cross-field normalized alias,VEN-1,2,"WBGENE00006891,WBGENE00008263",Gene name
+Cross-field normalized alias,VT23B5.1,2,"WBGENE00012153,WBGENE00197955","Other name, Sequence name"
+Cross-field normalized alias,Y105E8A.7,2,"WBGENE00001147,WBGENE00002977",Sequence name
+Cross-field normalized alias,Y105E8E.W,2,"WBGENE00003416,WBGENE00013678",Other name
+Cross-field normalized alias,Y110A2AM.A,2,"WBGENE00006710,WBGENE00022449",Other name
+Cross-field normalized alias,Y119C1B.B,2,"WBGENE00022469,WBGENE00044441",Other name
+Cross-field normalized alias,Y17G7B.24,2,"WBGENE00044033,WBGENE00201497","Other name, Sequence name"
+Cross-field normalized alias,Y32F6A.7,2,"WBGENE00077505,WBGENE00196522","Other name, Sequence name"
+Cross-field normalized alias,Y39G8C.5,2,"WBGENE00044055,WBGENE00196067","Other name, Sequence name"
+Cross-field normalized alias,Y39H10A.C,2,"WBGENE00020855,WBGENE00021480",Other name
+Cross-field normalized alias,Y40B1A.5,2,"WBGENE00012736,WBGENE00199416","Other name, Sequence name"
+Cross-field normalized alias,Y52E8A.8,2,"WBGENE00219505,WBGENE00219529","Other name, Sequence name"
+Cross-field normalized alias,Y55B1AL.C,2,"WBGENE00015155,WBGENE00021903",Other name
+Cross-field normalized alias,Y55F3BR.A,2,"WBGENE00021945,WBGENE00044757",Other name
+Cross-field normalized alias,Y57G11C.1147,2,"WBGENE00235234,WBGENE00303007","Other name, Sequence name"
+Cross-field normalized alias,Y69A2AR.20,2,"WBGENE00022091,WBGENE00043794","Other name, Sequence name"
+Cross-field normalized alias,Y6B3B.12,2,"WBGENE00044110,WBGENE00195985","Other name, Sequence name"
+Cross-field normalized alias,YRS-2,2,"WBGENE00006968,WBGENE00013666",Other name
+Cross-field normalized alias,ZC416.8,2,"WBGENE00000481,WBGENE00006756",Sequence name
+Cross-field normalized alias,ZK105.14,2,"WBGENE00235248,WBGENE00271707","Other name, Sequence name"
+Cross-field normalized alias,ZK1290.5,2,"WBGENE00006947,WBGENE00022887","Other name, Sequence name"
