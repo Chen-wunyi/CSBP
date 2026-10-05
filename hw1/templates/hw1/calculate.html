@@ -33,35 +33,51 @@
     </nav>
 
     <div class="container my-4">
-        <h4 class="mb-4 text-primary fw-bold">📄 Compare Quantitative Features Between Gene List</h4>
+        <h4 class="mb-4 text-primary fw-bold">📄 Compare Quantitative Features Between Gene Lists</h4>
 
         <form method="POST" id="calculateForm">
             {% csrf_token %}
             <div class="row">
-                <!-- Step 1: 輸入基因清單 -->
+                <!-- Step 1: 第一組輸入框 (Input First Gene List) -->
                 <div class="col-md-7">
                     <div class="card shadow-sm mb-4">
                         <div class="card-header">
-                            Step 1. Input Gene List (List 1)
+                            Step 1. Input Two Gene Lists (L1 vs. L2)
                         </div>
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <small class="text-muted">Input gene list (one per line, comma, or tab separated)...</small>
-                                <div>
-                                    <button type="button" class="btn btn-outline-primary btn-sm" id="loadExampleBtn">Load Example</button>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clearBtn">Clear</button>
+                            <div class="row">
+                                <!-- Input First Gene List (L1) -->
+                                <div class="col-md-6 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="small">Input First Gene List (L1)</strong>
+                                    </div>
+                                    <div class="d-flex gap-1 mb-2">
+                                        <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" id="loadExample1Btn" style="font-size: 0.8rem;">Load Example</button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="clear1Btn" style="font-size: 0.8rem;">Clear</button>
+                                    </div>
+                                    <textarea class="form-control" name="gene_input_1" id="gene_input_1" rows="7" placeholder="Enter list 1 genes...">{{ raw_input_1 }}</textarea>
+                                </div>
+
+                                <!-- Input Second Gene List (L2) -->
+                                <div class="col-md-6 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="small">Input Second Gene List (L2)</strong>
+                                    </div>
+                                    <div class="d-flex gap-1 mb-2">
+                                        <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" id="loadExample2Btn" style="font-size: 0.8rem;">Load Example</button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="clear2Btn" style="font-size: 0.8rem;">Clear</button>
+                                    </div>
+                                    <textarea class="form-control" name="gene_input_2" id="gene_input_2" rows="7" placeholder="Enter list 2 genes...">{{ raw_input_2 }}</textarea>
                                 </div>
                             </div>
-                            <textarea class="form-control" name="gene_input" id="gene_input" rows="8" placeholder="Enter genes here...">{{ raw_input }}</textarea>
-                            <div class="form-text mt-3" style="font-size: 0.85rem;">
-                                Accepted identifiers. Separate entries with line breaks, commas, or tabs.<br>
-                                <span class="text-danger">WormBase ID: WBGene00000001 &nbsp; Sequence name: Y110A7.10 &nbsp; Gene name: AAP-1</span>
+                            <div class="form-text mt-2" style="font-size: 0.8rem;">
+                                Accepted identifiers. Separate entries with line breaks, commas, or tabs.
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Step 2: 僅保留 # rna isoform -->
+                <!-- Step 2: 選擇定量特徵 (rna isoform) -->
                 <div class="col-md-5">
                     <div class="card shadow-sm mb-4">
                         <div class="card-header">
@@ -86,73 +102,142 @@
         </form>
     </div>
 
-    <!-- Bootstrap 原生防呆提示 Modal (彈出視窗) -->
+    <!-- 雙區塊防呆提示 Modal (配合你提供的畫面風格) -->
     <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="errorModalLabel">⚠️ 輸入驗證失敗</h5>
+                <div class="modal-header bg-white border-bottom-0">
+                    <h5 class="modal-title text-danger fw-bold" id="errorModalLabel">Warning</h5>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-2 text-secondary">偵測到以下基因名稱有誤或無法辨識：</p>
-                    <ul id="errorListContent" class="text-danger" style="max-height: 200px; overflow-y: auto; font-size: 0.9rem;">
-                        <!-- 錯誤清單會透過 JavaScript 自動填入 -->
-                    </ul>
+                    <p class="text-dark fw-semibold mb-1">Input genes contain names with multiple IDs or unknown names.</p>
+                    <p class="text-secondary small mb-3">Please modify your input gene list.</p>
+
+                    <!-- INPUT 1 錯誤表格 -->
+                    <div class="card mb-3 border">
+                        <div class="card-header bg-dark text-white text-center py-1" style="font-size: 0.9rem;">INPUT 1</div>
+                        <table class="table table-bordered mb-0 small">
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold bg-light" style="width: 70%;">Names with multiple IDs</td>
+                                    <td class="fw-bold bg-light text-center" style="width: 30%;">IDs</td>
+                                </tr>
+                                <tr>
+                                    <td id="l1_multiple_names" class="text-danger">-</td>
+                                    <td id="l1_multiple_ids" class="text-danger">-</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="fw-bold bg-light">Unknown names</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" id="l1_unknown_names" class="text-danger">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- INPUT 2 錯誤表格 -->
+                    <div class="card mb-3 border">
+                        <div class="card-header bg-dark text-white text-center py-1" style="font-size: 0.9rem;">INPUT 2</div>
+                        <table class="table table-bordered mb-0 small">
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold bg-light" style="width: 70%;">Names with multiple IDs</td>
+                                    <td class="fw-bold bg-light text-center" style="width: 30%;">IDs</td>
+                                </tr>
+                                <tr>
+                                    <td id="l2_multiple_names" class="text-danger">-</td>
+                                    <td id="l2_multiple_ids" class="text-danger">-</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="fw-bold bg-light">Unknown names</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" id="l2_unknown_names" class="text-danger">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <!-- 點擊後會關閉對話框，並自動讓使用者回去重新編輯 -->
-                    <button type="button" class="btn btn-dark w-100" id="backToEditBtn" data-bs-dismiss="modal">回去重新編輯</button>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-primary w-100 py-2 fw-bold" id="backToEditBtn" data-bs-dismiss="modal">Return and modify your input gene list</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 利用 Django 的 json_script 安全地將後端 errors 資料轉成前端 JSON 格式，完全不會有編輯器紅字 -->
-    {{ errors|json_script:"error-data" }}
+    <!-- 透過 json_script 傳遞後端驗證結果 -->
+    {{ errors_1|json_script:"errors-1-data" }}
+    {{ errors_2|json_script:"errors-2-data" }}
 
-    <!-- 引入 Bootstrap 5 JS Bundle (包含 Popper，用於驅動 Modal) -->
+    <!-- 引入 Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- 純 JavaScript 邏輯 -->
+    <!-- JavaScript 互動與按鈕功能 -->
     <script>
-        // Load Example 按鈕
-        document.getElementById('loadExampleBtn').addEventListener('click', function() {
-            document.getElementById('gene_input').value = "WBGene00000001\nY110A7.10\nAAP-1";
+        // List 1 按鈕事件
+        document.getElementById('loadExample1Btn').addEventListener('click', function() {
+            document.getElementById('gene_input_1').value = "WBGene00000001\nY110A7.10\nAAP-1";
+        });
+        document.getElementById('clear1Btn').addEventListener('click', function() {
+            document.getElementById('gene_input_1').value = "";
+            document.getElementById('gene_input_1').focus();
         });
 
-        // Clear 按鈕
-        document.getElementById('clearBtn').addEventListener('click', function() {
-            document.getElementById('gene_input').value = "";
-            document.getElementById('gene_input').focus();
+        // List 2 按鈕事件
+        document.getElementById('loadExample2Btn').addEventListener('click', function() {
+            document.getElementById('gene_input_2').value = "WBGene00000002\nY110A7.11";
+        });
+        document.getElementById('clear2Btn').addEventListener('click', function() {
+            document.getElementById('gene_input_2').value = "";
+            document.getElementById('gene_input_2').focus();
         });
 
-        // 頁面載入後檢查後端是否有傳遞錯誤
+        // 頁面載入後檢查是否有錯誤並顯示 Modal
         document.addEventListener("DOMContentLoaded", function() {
-            // 從 json_script 安全讀取後端傳來的錯誤資料
-            const errors = JSON.parse(document.getElementById('error-data').textContent);
+            const errors1 = JSON.parse(document.getElementById('errors-1-data').textContent || '[]');
+            const errors2 = JSON.parse(document.getElementById('errors-2-data').textContent || '[]');
 
-            if (errors && errors.length > 0) {
-                // 將錯誤訊息動態加入 Modal 的列表裡
-                const errorListUl = document.getElementById('errorListContent');
-                errorListUl.innerHTML = ""; // 清空舊內容
-                
-                errors.forEach(e => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<b>${e.input}</b>: ${e.message_title} ${e.detail ? '(' + e.detail + ')' : ''}`;
-                    errorListUl.appendChild(li);
+            if ((errors1 && errors1.length > 0) || (errors2 && errors2.length > 0)) {
+                // 處理 Input 1 錯誤填入
+                let l1_mult_names = [], l1_mult_ids = [], l1_unk = [];
+                errors1.forEach(e => {
+                    if (e.message_title === 'Multiple WormBase IDs found') {
+                        l1_mult_names.push(e.input);
+                        l1_mult_ids.push(e.detail);
+                    } else if (e.message_title === 'Unknown name') {
+                        l1_unk.push(e.input);
+                    }
                 });
+                document.getElementById('l1_multiple_names').innerText = l1_mult_names.join(', ') || '-';
+                document.getElementById('l1_multiple_ids').innerText = l1_mult_ids.join(', ') || '-';
+                document.getElementById('l1_unknown_names').innerText = l1_unk.join(', ') || '-';
 
-                // 顯示 Bootstrap Modal
+                // 處理 Input 2 錯誤填入
+                let l2_mult_names = [], l2_mult_ids = [], l2_unk = [];
+                errors2.forEach(e => {
+                    if (e.message_title === 'Multiple WormBase IDs found') {
+                        l2_mult_names.push(e.input);
+                        l2_mult_ids.push(e.detail);
+                    } else if (e.message_title === 'Unknown name') {
+                        l2_unk.push(e.input);
+                    }
+                });
+                document.getElementById('l2_multiple_names').innerText = l2_mult_names.join(', ') || '-';
+                document.getElementById('l2_multiple_ids').innerText = l2_mult_ids.join(', ') || '-';
+                document.getElementById('l2_unknown_names').innerText = l2_unk.join(', ') || '-';
+
+                // 顯示彈出視窗
                 const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
                 errorModal.show();
             }
         });
 
-        // 當點擊「回去重新編輯」按鈕關閉視窗後，自動將焦點移回輸入框
+        // 點擊返回按鈕時聚焦回第一個輸入框
         const backBtn = document.getElementById('backToEditBtn');
         if (backBtn) {
             backBtn.addEventListener('click', function() {
-                const inputArea = document.getElementById('gene_input');
+                const inputArea = document.getElementById('gene_input_1');
                 if (inputArea) {
                     inputArea.focus();
                     inputArea.select();
