@@ -25,6 +25,7 @@
     <div class="container my-4">
         <h4 class="mb-4 text-primary fw-bold">Compare Quantitative Features Between Two Gene Lists</h4>
 
+        <!-- 單一主表單，包覆輸入框與下方的統計參數調整 -->
         <form method="POST" id="calculateForm">
             {% csrf_token %}
             <div class="row">
@@ -62,23 +63,8 @@
                                 <input class="form-check-input" type="checkbox" name="features" value="rna_isoform" id="rnaIsoform" checked onclick="return false;">
                                 <label class="form-check-label fw-semibold" for="rnaIsoform"># of protein isoforms</label>
                             </div>
-
-                            <hr class="my-3">
-                            <div class="mb-2">
-                                <label class="form-label fw-bold small">Multiple hypotheses testing:</label>
-                                <select class="form-select form-select-sm" name="correction_method">
-                                    <option value="fdr_bh" {% if correction_method == 'fdr_bh' %}selected{% endif %}>FDR correction</option>
-                                    <option value="bonferroni" {% if correction_method == 'bonferroni' %}selected{% endif %}>Bonferroni correction</option>
-                                    <option value="no" {% if correction_method == 'no' %}selected{% endif %}>No correction</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="form-label fw-bold small">p-value cut-off:</label>
-                                <select class="form-select form-select-sm" name="p_cutoff">
-                                    <option value="0.01" {% if p_cutoff == 0.01 %}selected{% endif %}>0.01</option>
-                                    <option value="0.05" {% if p_cutoff == 0.05 %}selected{% endif %}>0.05</option>
-                                    <option value="0.001" {% if p_cutoff == 0.001 %}selected{% endif %}>0.001</option>
-                                </select>
+                            <div class="text-muted small mt-3">
+                                💡 Tip: After entering your lists, click Calculate. You can adjust correction methods and p-value cut-offs directly next to the results table below.
                             </div>
                         </div>
                     </div>
@@ -88,72 +74,95 @@
             <div class="text-center mt-3 mb-5">
                 <button type="submit" class="btn btn-dark px-5 py-2 fw-bold">Calculate</button>
             </div>
+
+            <!-- 📊 分析結果顯示區塊 (放在 Form 內，讓下拉選單修改時也能一併送出) -->
+            {% if analysis_results %}
+            <div class="mt-5 text-start">
+                <h5 class="text-secondary fw-bold mb-3">Analyzed quantitative feature (QF): # of protein isoforms</h5>
+                
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light">1. Summary</div>
+                    <div class="card-body p-0">
+                        <table class="table table-bordered mb-0">
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold bg-light" style="width: 50%;"># of genes which have this feature data</td>
+                                    <td class="text-center text-primary">{{ analysis_results.count_1 }} genes (from {{ analysis_results.total_1 }} input genes)</td>
+                                    <td class="text-center text-primary">{{ analysis_results.count_2 }} genes (from {{ analysis_results.total_2 }} input genes)</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold bg-light">Mean ()</td>
+                                    <td class="text-center">{{ analysis_results.mean_1 }}</td>
+                                    <td class="text-center">{{ analysis_results.mean_2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold bg-light">Median ()</td>
+                                    <td class="text-center">{{ analysis_results.median_1 }}</td>
+                                    <td class="text-center">{{ analysis_results.median_2 }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 2. Statistical Testing Results (下拉選單放置於此，緊鄰表格上方) -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span>2. Statistical testing results: six p-values of the three statistical tests</span>
+                    </div>
+                    <div class="card-body">
+                        <!-- 調整參數區塊：放置於表格上方，支援即時更改並重新計算 -->
+                        <div class="row mb-4 p-3 bg-light rounded border align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-dark">Multiple hypotheses testing:</label>
+                                <select class="form-select form-select-sm shadow-sm" name="correction_method" onchange="this.form.submit()">
+                                    <option value="fdr_bh" {% if correction_method == 'fdr_bh' %}selected{% endif %}>FDR correction</option>
+                                    <option value="bonferroni" {% if correction_method == 'bonferroni' %}selected{% endif %}>Bonferroni correction</option>
+                                    <option value="no" {% if correction_method == 'no' %}selected{% endif %}>No correction</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-dark">p-value cut-off:</label>
+                                <select class="form-select form-select-sm shadow-sm" name="p_cutoff" onchange="this.form.submit()">
+                                    <option value="0.01" {% if p_cutoff == 0.01 %}selected{% endif %}>0.01</option>
+                                    <option value="0.05" {% if p_cutoff == 0.05 %}selected{% endif %}>0.05</option>
+                                    <option value="0.001" {% if p_cutoff == 0.001 %}selected{% endif %}>0.001</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <table class="table table-bordered text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-start">Comparison</th>
+                                    <th>t-test</th>
+                                    <th>U test</th>
+                                    <th>KS test</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="text-start fw-semibold">QF (List 1) > QF (List 2)</td>
+                                    <td class="{% if analysis_results.gt_t.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_t.padj|stringformat:".4e" }}</td>
+                                    <td class="{% if analysis_results.gt_u.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_u.padj|stringformat:".4e" }}</td>
+                                    <td class="{% if analysis_results.gt_ks.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_ks.padj|stringformat:".4e" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start fw-semibold">QF (List 1) &lt; QF (List 2)</td>
+                                    <td class="{% if analysis_results.lt_t.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_t.padj|stringformat:".4e" }}</td>
+                                    <td class="{% if analysis_results.lt_u.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_u.padj|stringformat:".4e" }}</td>
+                                    <td class="{% if analysis_results.lt_ks.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_ks.padj|stringformat:".4e" }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </form>
-
-        <!-- 📊 分析結果顯示區塊 -->
-        {% if analysis_results %}
-        <div class="mt-5">
-            <h5 class="text-secondary fw-bold mb-3">Analyzed quantitative feature (QF): # of protein isoforms</h5>
-            
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-light">1. Summary</div>
-                <div class="card-body p-0">
-                    <table class="table table-bordered mb-0">
-                        <tbody>
-                            <tr>
-                                <td class="fw-bold bg-light" style="width: 50%;"># of genes which have this feature data</td>
-                                <td class="text-center text-primary">{{ analysis_results.count_1 }} genes (from {{ analysis_results.total_1 }} input genes)</td>
-                                <td class="text-center text-primary">{{ analysis_results.count_2 }} genes (from {{ analysis_results.total_2 }} input genes)</td>
-                            </tr>
-                            <tr>
-                                <td class="fw-bold bg-light">Mean ()</td>
-                                <td class="text-center">{{ analysis_results.mean_1 }}</td>
-                                <td class="text-center">{{ analysis_results.mean_2 }}</td>
-                            </tr>
-                            <tr>
-                                <td class="fw-bold bg-light">Median ()</td>
-                                <td class="text-center">{{ analysis_results.median_1 }}</td>
-                                <td class="text-center">{{ analysis_results.median_2 }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-light">2. Statistical testing results: six p-values of the three statistical tests</div>
-                <div class="card-body">
-                    <table class="table table-bordered text-center align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="text-start">Comparison</th>
-                                <th>t-test</th>
-                                <th>U test</th>
-                                <th>KS test</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="text-start fw-semibold">QF (List 1) > QF (List 2)</td>
-                                <td class="{% if analysis_results.gt_t.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_t.padj|stringformat:".4e" }}</td>
-                                <td class="{% if analysis_results.gt_u.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_u.padj|stringformat:".4e" }}</td>
-                                <td class="{% if analysis_results.gt_ks.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_ks.padj|stringformat:".4e" }}</td>
-                            </tr>
-                            <tr>
-                                <td class="text-start fw-semibold">QF (List 1) &lt; QF (List 2)</td>
-                                <td class="{% if analysis_results.lt_t.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_t.padj|stringformat:".4e" }}</td>
-                                <td class="{% if analysis_results.lt_u.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_u.padj|stringformat:".4e" }}</td>
-                                <td class="{% if analysis_results.lt_ks.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_ks.padj|stringformat:".4e" }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        {% endif %}
     </div>
 
-    <!-- 🛑 防呆提示 Modal (對齊上個作業風格，將重複輸入與錯誤分開顯示) -->
+    <!-- 🛑 防呆提示 Modal -->
     <div class="modal fade" id="errorModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
@@ -163,7 +172,6 @@
                 <div class="modal-body">
                     <p class="text-dark fw-semibold mb-3">Input genes contain duplicate inputs, multiple IDs, or unknown names.</p>
 
-                    <!-- INPUT 1 錯誤表格 -->
                     <div class="card mb-3 border">
                         <div class="card-header bg-dark text-white text-center py-1">INPUT 1</div>
                         <table class="table table-bordered mb-0 small">
@@ -188,7 +196,6 @@
                         </table>
                     </div>
 
-                    <!-- INPUT 2 錯誤表格 -->
                     <div class="card mb-3 border">
                         <div class="card-header bg-dark text-white text-center py-1">INPUT 2</div>
                         <table class="table table-bordered mb-0 small">

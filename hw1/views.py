@@ -149,7 +149,7 @@ def input_validation(request):
     })
 
 import re
-from collections import defaultdict, Counter
+from collections import defaultdict
 from django.shortcuts import render
 from django.db.models import Q
 from statsmodels.stats.multitest import multipletests
@@ -162,26 +162,11 @@ def validate_gene_list(raw_input):
     valid_genes = []
     
     tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
-    token_counts = Counter(tokens)
-    seen_duplicates = set()
     
+    seen_wb_ids = {}      # 用來追蹤每個 WormBase ID 被哪個 token 查到過
     gene_matched_fields = defaultdict(set)
     
     for token in tokens:
-        token_lower = token.lower()
-        
-        # 1. 偵測重複輸入
-        if token_counts[token] > 1:
-            if token_lower not in seen_duplicates:
-                seen_duplicates.add(token_lower)
-                errors.append({
-                    'input': token,
-                    'message_title': 'Duplicate input',
-                    'detail': ''
-                })
-            continue
-            
-        # 2. 資料庫比對
         matches = Gene.objects.filter(
             Q(wormbase_id__iexact=token) |
             Q(sequence_name__iexact=token) |
@@ -206,7 +191,19 @@ def validate_gene_list(raw_input):
         else:
             wb_id = distinct_ids[0]
             gene_obj = matches.first()
+            token_lower = token.lower()
             
+            # 💡 核心修正：如果這個 WormBase ID 已經被前面輸入的其他代號/名稱查到過了，代表這是「重複輸入同一個基因」！
+            if wb_id in seen_wb_ids:
+                errors.append({
+                    'input': token,
+                    'message_title': 'Duplicate input',
+                    'detail': f'Refers to same gene as {seen_wb_ids[wb_id]}'
+                })
+                continue
+            
+            seen_wb_ids[wb_id] = token
+
             if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
                 gene_matched_fields[wb_id].add('wormbase_id')
             if (gene_obj.sequence_name or '').strip().lower() == token_lower:
@@ -263,7 +260,6 @@ def calculate_view(request):
                 mean_1, mean_2 = np.mean(arr1_np), np.mean(arr2_np)
                 median_1, median_2 = np.median(arr1_np), np.median(arr2_np)
 
-                # 確保點擊 Load Example 時能強制出現黃色高亮框
                 is_example = ("WBGene00002228" in raw_input_1 or "WBGene00009701" in raw_input_2)
 
                 if is_example:
