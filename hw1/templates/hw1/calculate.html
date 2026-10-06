@@ -33,16 +33,17 @@
     </nav>
 
     <div class="container my-4">
-        <h4 class="mb-4 text-primary fw-bold">📄 Compare Quantitative Features Between Gene Lists</h4>
+        <h4 class="mb-4 text-primary fw-bold">Compare Quantitative Features Between Two Gene Lists</h4>
 
         <form method="POST" id="calculateForm">
             {% csrf_token %}
             <div class="row">
-                <!-- Step 1: 第一組輸入框 (Input First Gene List) -->
+                <!-- Step 1: 第一組與第二組基因列表輸入框 -->
                 <div class="col-md-7">
                     <div class="card shadow-sm mb-4">
-                        <div class="card-header">
-                            Step 1. Input Two Gene Lists (L1 vs. L2)
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>Step 1. Input Two Gene Lists (L1 vs. L2)</span>
+                            <span class="text-muted" style="font-size: 0.8rem; font-weight: normal;">ℹ️</span>
                         </div>
                         <div class="card-body">
                             <div class="row">
@@ -55,7 +56,7 @@
                                         <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" id="loadExample1Btn" style="font-size: 0.8rem;">Load Example</button>
                                         <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="clear1Btn" style="font-size: 0.8rem;">Clear</button>
                                     </div>
-                                    <textarea class="form-control" name="gene_input_1" id="gene_input_1" rows="7" placeholder="Enter list 1 genes...">{{ raw_input_1 }}</textarea>
+                                    <textarea class="form-control" name="gene_input_1" id="gene_input_1" rows="8" placeholder="Enter list 1 genes...">{{ raw_input_1 }}</textarea>
                                 </div>
 
                                 <!-- Input Second Gene List (L2) -->
@@ -67,7 +68,7 @@
                                         <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" id="loadExample2Btn" style="font-size: 0.8rem;">Load Example</button>
                                         <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="clear2Btn" style="font-size: 0.8rem;">Clear</button>
                                     </div>
-                                    <textarea class="form-control" name="gene_input_2" id="gene_input_2" rows="7" placeholder="Enter list 2 genes...">{{ raw_input_2 }}</textarea>
+                                    <textarea class="form-control" name="gene_input_2" id="gene_input_2" rows="8" placeholder="Enter list 2 genes...">{{ raw_input_2 }}</textarea>
                                 </div>
                             </div>
                             <div class="form-text mt-2" style="font-size: 0.8rem;">
@@ -77,17 +78,36 @@
                     </div>
                 </div>
 
-                <!-- Step 2: 選擇定量特徵 (rna isoform) -->
+                <!-- Step 2: 選擇定量特徵 (參考 WQFC 介面) -->
                 <div class="col-md-5">
                     <div class="card shadow-sm mb-4">
                         <div class="card-header">
                             Step 2. Select the Quantitative Feature to be Analyzed
                         </div>
-                        <div class="card-body" style="min-height: 235px;">
-                            <div class="form-check mt-3">
-                                <input class="form-check-input" type="checkbox" name="features" value="rna_isoform" id="rnaIsoform" checked>
-                                <label class="form-check-label fw-semibold" for="rnaIsoform">
-                                    # rna isoform
+                        <div class="card-body" style="min-height: 275px;">
+                            <div class="form-check mb-2 border-bottom pb-2">
+                                <input class="form-check-input" type="checkbox" id="selectAllFeatures">
+                                <label class="form-check-label fw-bold text-secondary" for="selectAllFeatures" style="font-size: 0.9rem;">
+                                    Select ALL
+                                </label>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input feature-checkbox" type="checkbox" name="features" value="rna_isoform" id="rnaIsoform" checked>
+                                <label class="form-check-label fw-semibold" for="rnaIsoform" style="font-size: 0.9rem;">
+                                    # of protein isoforms
+                                </label>
+                            </div>
+                            <!-- 預留未來擴充其他特徵選項 -->
+                            <div class="form-check mt-2">
+                                <input class="form-check-input feature-checkbox" type="checkbox" name="features" value="cds_length" id="cdsLength">
+                                <label class="form-check-label" for="cdsLength" style="font-size: 0.9rem;">
+                                    CDS length
+                                </label>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input feature-checkbox" type="checkbox" name="features" value="utr5_length" id="utr5Length">
+                                <label class="form-check-label" for="utr5Length" style="font-size: 0.9rem;">
+                                    5'UTR length
                                 </label>
                             </div>
                         </div>
@@ -102,7 +122,7 @@
         </form>
     </div>
 
-    <!-- 雙區塊防呆提示 Modal (配合你提供的畫面風格) -->
+    <!-- 雙區塊防呆提示 Modal -->
     <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
@@ -175,22 +195,43 @@
 
     <!-- JavaScript 互動與按鈕功能 -->
     <script>
-        // List 1 按鈕事件
+        // List 1 範例按鈕事件 (對應參考解答之 CSR-1 High Targets 範例)[cite: 4]
         document.getElementById('loadExample1Btn').addEventListener('click', function() {
-            document.getElementById('gene_input_1').value = "WBGene00000001\nY110A7.10\nAAP-1";
+            document.getElementById('gene_input_15').value = ""; // 保險清空
+            document.getElementById('gene_input_1').value = "WBGene00002228\nWBGene00017896\nWBGene00001601\nWBGene00002036\nWBGene00000549\nWBGene00002219\nWBGene00020464\nWBGene00013106";
         });
         document.getElementById('clear1Btn').addEventListener('click', function() {
             document.getElementById('gene_input_1').value = "";
             document.getElementById('gene_input_1').focus();
         });
 
-        // List 2 按鈕事件
+        // List 2 範例按鈕事件 (對應參考解答之 CSR-1 Low Targets 範例)[cite: 4]
         document.getElementById('loadExample2Btn').addEventListener('click', function() {
-            document.getElementById('gene_input_2').value = "WBGene00000002\nY110A7.11";
+            document.getElementById('gene_input_2').value = "WBGene00009701\nWBGene00017799\nWBGene00004446\nWBGene00009987\nWBGene00007488\nWBGene00002068\nWBGene00000144\nWBGene00006751";
         });
         document.getElementById('clear2Btn').addEventListener('click', function() {
             document.getElementById('gene_input_2').value = "";
             document.getElementById('gene_input_2').focus();
+        });
+
+        // Step 2 全選功能連動
+        const selectAllCheckbox = document.getElementById('selectAllFeatures');
+        const featureCheckboxes = document.querySelectorAll('.feature-checkbox');
+        
+        selectAllCheckbox.addEventListener('change', function() {
+            featureCheckboxes.forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+        });
+
+        featureCheckboxes.forEach(cb => {
+            cb.addEventListener('change', function() {
+                if (!cb.checked) {
+                    selectAllCheckbox.checked = false;
+                } else if (Array.from(featureCheckboxes).every(i => i.checked)) {
+                    selectAllCheckbox.checked = true;
+                }
+            });
         });
 
         // 頁面載入後檢查是否有錯誤並顯示 Modal
@@ -199,7 +240,6 @@
             const errors2 = JSON.parse(document.getElementById('errors-2-data').textContent || '[]');
 
             if ((errors1 && errors1.length > 0) || (errors2 && errors2.length > 0)) {
-                // 處理 Input 1 錯誤填入
                 let l1_mult_names = [], l1_mult_ids = [], l1_unk = [];
                 errors1.forEach(e => {
                     if (e.message_title === 'Multiple WormBase IDs found') {
@@ -213,7 +253,6 @@
                 document.getElementById('l1_multiple_ids').innerText = l1_mult_ids.join(', ') || '-';
                 document.getElementById('l1_unknown_names').innerText = l1_unk.join(', ') || '-';
 
-                // 處理 Input 2 錯誤填入
                 let l2_mult_names = [], l2_mult_ids = [], l2_unk = [];
                 errors2.forEach(e => {
                     if (e.message_title === 'Multiple WormBase IDs found') {
@@ -227,13 +266,11 @@
                 document.getElementById('l2_multiple_ids').innerText = l2_mult_ids.join(', ') || '-';
                 document.getElementById('l2_unknown_names').innerText = l2_unk.join(', ') || '-';
 
-                // 顯示彈出視窗
                 const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
                 errorModal.show();
             }
         });
 
-        // 點擊返回按鈕時聚焦回第一個輸入框
         const backBtn = document.getElementById('backToEditBtn');
         if (backBtn) {
             backBtn.addEventListener('click', function() {

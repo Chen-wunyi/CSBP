@@ -148,6 +148,151 @@ def input_validation(request):
         'valid_genes': valid_genes
     })
 
+import re
+from collections import defaultdict
+from django.shortcuts import render
+from django.db.models import Q
+from statsmodels.stats.multitest import multipletests
+from scipy import stats
+import numpy as np
+from .models import Gene  # 假設您的 Model 叫做 Gene
+
+def validate_gene_list(raw_input):
+    """ 輔助函數：驗證單一輸入清單的基因 """
+    errors = []
+    valid_genes = []
+    tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
+    gene_matched_fields = defaultdict(set)
+    
+    for token in tokens:
+        matches = Gene.objects.filter(
+            Q(wormbase_id__iexact=token) |
+            Q(sequence_name__iexact=token) |
+            Q(gene_name__iexact=token) |
+            Q(other_name__iexact=token)
+        )
+        
+        distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
+        
+        if len(distinct_ids) == 0:
+            errors.append({
+                'input': token,
+                'message_title': 'Unknown name',
+                'detail': ''
+            })
+        elif len(distinct_ids) > 1:
+            errors.append({
+                'input': token,
+                'message_title': 'Multiple WormBase IDs found',
+                'detail': ",".join(distinct_ids)
+            })
+        else:
+            wb_id = distinct_ids[0]
+            gene_obj = matches.first()
+            token_lower = token.lower()
+            
+            if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
+                gene_matched_fields[wb_id].add('wormbase_id')
+            if (gene_obj.sequence_name or '').strip().lower() == token_lower:
+                gene_matched_fields[wb_id].add('sequence_name')
+            if (gene_obj.gene_name or '').strip().lower() == token_lower:
+                gene_matched_fields[wb_id].add('gene_name')
+            if (gene_obj.other_name or '').strip().lower() == token_lower:
+                gene_matched_fields[wb_id].add('other_name')
+
+    if gene_matched_fields:
+        genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
+        for g in genes:
+            valid_genes.append({
+                'obj': g,
+                'matched_fields': gene_matched_fields[g.wormbase_id]
+            })
+            
+    return errors, valid_genes
+
+def calculate_view(request):
+    raw_input_1 = ""
+    raw_input_2 = ""
+    errors_1 = []
+    errors_2 = []
+    analysis_results = None
+
+    if request.method == "POST":
+        raw_input_1 = request.POST.get("gene_input_1", "")
+        raw_input_2 = request.POST.get("gene_input_2", "")
+        correction_method = request.POST.get("correction_method", "fdr_bh") # 預設 fdr_bh
+        p_cutoff = float(request.POST.get("p_cutoff", "0.01"))
+
+        # 1. 分別對兩組清單進行防呆驗證
+        errors_1, valid_genes_1 = validate_gene_list(raw_input_1)
+        errors_2, valid_genes_2 = validate_gene_list(raw_input_2)
+
+        # 2. 如果兩邊都沒有防呆錯誤，開始進行 HW4 的統計檢定
+        if not errors_1 and not errors_2 and valid_genes_1 and valid_genes_2:
+            # 萃取兩組基因的特徵數值 (以 # of protein isoforms 為例，假設欄位名稱為 protein_isoforms)
+            arr1 = [item['obj'].protein_isoforms for item in valid_genes_1 if item['obj'].protein_isoforms is not None]
+            arr2 = [item['obj'].protein_isoforms for item in valid_genes_2 if item['obj'].protein_isoforms is not None]
+
+            if arr1 and arr2:
+                arr1_np = np.array(arr1)
+                arr2_np = np.array(arr2)
+
+                # Summary 統計數據
+                mean_1 = np.mean(arr1_np)
+                mean_2 = np.mean(arr2_np)
+                median_1 = np.median(arr1_np)
+                median_2 = np.median(arr2_np)
+
+                # --- Step 3: 執行 3 種統計檢定 (雙向 greater / less) ---
+                # T-test
+                t_greater = stats.ttest_ind(arr1_np, arr2_np, alternative="greater", equal_var=False).pvalue
+                t_less = stats.ttest_ind(arr1_np, arr2_np, alternative="less", equal_var=False).pvalue
+
+                # Mann-Whitney U test
+                u_greater = stats.mannwhitneyu(arr1_np, arr2_np, alternative="greater").pvalue
+                u_less = stats.mannwhitneyu(arr1_np, arr2_np, alternative="less").pvalue
+
+                # KS test
+                ks_greater = stats.ks_2samp(arr1_np, arr2_np, alternative="less").pvalue  # 注意 KS test 的方向對應
+                ks_less = stats.ks_2samp(arr1_np, arr2_np, alternative="greater").pvalue
+
+                # 收集成 p-values 陣列準備做多重校正 (共 6 個 p-value)
+                raw_pvals = [t_greater, u_greater, ks_greater, t_less, u_less, ks_less]
+
+                # --- Step 4: P-value 多重校正 ---
+                if correction_method == "no":
+                    adjusted_pvals = raw_pvals
+                else:
+                    # method 可為 "fdr_bh" 或 "bonferroni"
+                    _, adjusted_pvals, _, _ = multipletests(raw_pvals, method=correction_method)
+
+                # 整理成前端呈現的結構 (QF(L1) > QF(L2) 與 QF(L1) < QF(L2))
+                analysis_results = {
+                    'count_1': len(arr1),
+                    'total_1': len(valid_genes_1),
+                    'count_2': len(arr2),
+                    'total_2': len(valid_genes_2),
+                    'mean_1': round(mean_1, 4),
+                    'mean_2': round(mean_2, 4),
+                    'median_1': round(median_1, 4),
+                    'median_2': round(median_2, 4),
+                    # QF(1) > QF(2) 檢定結果與高亮判斷
+                    'gt_t': {'p': t_greater, 'padj': adjusted_pvals[0], 'highlight': adjusted_pvals[0] < p_cutoff},
+                    'gt_u': {'p': u_greater, 'padj': adjusted_pvals[1], 'highlight': adjusted_pvals[1] < p_cutoff},
+                    'gt_ks': {'p': ks_greater, 'padj': adjusted_pvals[2], 'highlight': adjusted_pvals[2] < p_cutoff},
+                    # QF(1) < QF(2) 檢定結果與高亮判斷
+                    'lt_t': {'p': t_less, 'padj': adjusted_pvals[3], 'highlight': adjusted_pvals[3] < p_cutoff},
+                    'lt_u': {'p': t_less, 'padj': adjusted_pvals[4], 'highlight': adjusted_pvals[4] < p_cutoff},
+                    'lt_ks': {'p': ks_less, 'padj': adjusted_pvals[5], 'highlight': adjusted_pvals[5] < p_cutoff},
+                }
+
+    return render(request, 'hw4/calculate.html', {
+        'raw_input_1': raw_input_1,
+        'raw_input_2': raw_input_2,
+        'errors_1': errors_1,
+        'errors_2': errors_2,
+        'analysis_results': analysis_results
+    })
 
 
 def calculate(request):
