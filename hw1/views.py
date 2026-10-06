@@ -158,7 +158,7 @@ import numpy as np
 from .models import Gene
 
 def validate_gene_list(raw_input):
-    """ 完全對齊您上個作業的防呆驗證邏輯 """
+    """ 完全對齊您上個作業的防呆驗證核心邏輯 """
     errors = []
     valid_genes = []
     
@@ -167,7 +167,7 @@ def validate_gene_list(raw_input):
     gene_matched_fields = defaultdict(set)
     
     for token in tokens:
-        # 比對所有欄位 (不分大小寫)
+        # 跨 WormBase ID、Sequence Name、Gene Name 及 Other Name 執行忽略大小寫的比對
         matches = Gene.objects.filter(
             Q(wormbase_id__iexact=token) |
             Q(sequence_name__iexact=token) |
@@ -177,6 +177,7 @@ def validate_gene_list(raw_input):
         
         distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
         
+        # 防呆策略：透過比對 ID 數量，將查無資料與同名對應多組 ID 做分類並回傳 error 清單
         if len(distinct_ids) == 0:
             errors.append({
                 'input': token,
@@ -194,7 +195,7 @@ def validate_gene_list(raw_input):
             gene_obj = matches.first()
             token_lower = token.lower()
             
-            # 安全字串比對，防止欄位為 None 時引發 AttributeError
+            # 空值防護：針對資料庫 NULL 欄位進行安全字串比對，避免 AttributeError
             if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
                 gene_matched_fields[wb_id].add('wormbase_id')
             if (gene_obj.sequence_name or '').strip().lower() == token_lower:
@@ -205,7 +206,7 @@ def validate_gene_list(raw_input):
                 gene_matched_fields[wb_id].add('other_name')
 
     if gene_matched_fields:
-        # 一次性取出所有解析成功的資料，自動去重
+        # 利用 wormbase_id__in 一次性取出所有解析成功的資料，自動去重
         genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
         for g in genes:
             valid_genes.append({
@@ -234,7 +235,6 @@ def calculate_view(request):
 
         # 只有當兩組清單皆無防呆錯誤且皆有有效基因時，才執行 HW4 統計檢定
         if not errors_1 and not errors_2 and valid_genes_1 and valid_genes_2:
-            # 取得特徵數值 (安全的 isoforms 取值防護)
             def get_isoform_value(gene_obj):
                 if hasattr(gene_obj, 'protein_isoforms'):
                     return gene_obj.protein_isoforms
