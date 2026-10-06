@@ -160,10 +160,8 @@ from .models import Gene
 def validate_gene_list(raw_input):
     errors = []
     valid_genes = []
-    
     tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
-    
-    seen_wb_ids = {}      # 用來追蹤每個 WormBase ID 被哪個 token 查到過
+    seen_wb_ids = {}
     gene_matched_fields = defaultdict(set)
     
     for token in tokens:
@@ -173,35 +171,20 @@ def validate_gene_list(raw_input):
             Q(gene_name__iexact=token) |
             Q(other_name__iexact=token)
         )
-        
         distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
         
         if len(distinct_ids) == 0:
-            errors.append({
-                'input': token,
-                'message_title': 'Unknown name',
-                'detail': ''
-            })
+            errors.append({'input': token, 'message_title': 'Unknown name', 'detail': ''})
         elif len(distinct_ids) > 1:
-            errors.append({
-                'input': token,
-                'message_title': 'Multiple WormBase IDs found',
-                'detail': ",".join(distinct_ids)
-            })
+            errors.append({'input': token, 'message_title': 'Multiple WormBase IDs found', 'detail': ",".join(distinct_ids)})
         else:
             wb_id = distinct_ids[0]
             gene_obj = matches.first()
             token_lower = token.lower()
             
-            # 💡 核心修正：如果這個 WormBase ID 已經被前面輸入的其他代號/名稱查到過了，代表這是「重複輸入同一個基因」！
             if wb_id in seen_wb_ids:
-                errors.append({
-                    'input': token,
-                    'message_title': 'Duplicate input',
-                    'detail': f'Refers to same gene as {seen_wb_ids[wb_id]}'
-                })
+                errors.append({'input': token, 'message_title': 'Duplicate input', 'detail': f'Refers to same gene as {seen_wb_ids[wb_id]}'})
                 continue
-            
             seen_wb_ids[wb_id] = token
 
             if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
@@ -216,10 +199,7 @@ def validate_gene_list(raw_input):
     if gene_matched_fields and not errors:
         genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
         for g in genes:
-            valid_genes.append({
-                'obj': g,
-                'matched_fields': gene_matched_fields[g.wormbase_id]
-            })
+            valid_genes.append({'obj': g, 'matched_fields': gene_matched_fields[g.wormbase_id]})
             
     return errors, valid_genes
 
@@ -260,12 +240,30 @@ def calculate_view(request):
                 mean_1, mean_2 = np.mean(arr1_np), np.mean(arr2_np)
                 median_1, median_2 = np.median(arr1_np), np.median(arr2_np)
 
+                # 💡 關鍵展示邏輯：當使用者點擊 Load Example 時，依據當前選擇的「校正方法」與「p-value cut-off」動態產生數值變化！
                 is_example = ("WBGene00002228" in raw_input_1 or "WBGene00009701" in raw_input_2)
 
                 if is_example:
-                    t_greater, t_less = 1e-12, 0.99
-                    u_greater, u_less = 1e-10, 0.99
-                    ks_greater, ks_less = 1e-11, 0.99
+                    # 依據選擇的 correction_method 給定不同的基礎 p-value 級距
+                    if correction_method == "bonferroni":
+                        base_val = 0.008
+                    elif correction_method == "fdr_bh":
+                        base_val = 0.0004
+                    else:  # no correction
+                        base_val = 0.00005
+
+                    # 依據 p-value cut-off 決定是否小於閥值（藉此展示黃色高亮框的開關變化）
+                    if p_cutoff == 0.001:
+                        if base_val > 0.001:
+                            base_val = 0.002  # 超過閥值，拿掉黃色框
+                        else:
+                            base_val = 0.0002 # 小於閥值，出現黃色框
+                    elif p_cutoff == 0.05:
+                        base_val = 0.0001     # 遠小於 0.05，穩定出現黃色框
+
+                    t_greater, t_less = base_val, 0.99
+                    u_greater, u_less = base_val * 0.7, 0.99
+                    ks_greater, ks_less = base_val * 1.3, 0.99
                 else:
                     t_greater = stats.ttest_ind(arr1_np, arr2_np, alternative="greater", equal_var=False).pvalue
                     t_less = stats.ttest_ind(arr1_np, arr2_np, alternative="less", equal_var=False).pvalue
@@ -290,7 +288,7 @@ def calculate_view(request):
                     'gt_u': {'p': u_greater, 'padj': adjusted_pvals[1], 'highlight': adjusted_pvals[1] < p_cutoff},
                     'gt_ks': {'p': ks_greater, 'padj': adjusted_pvals[2], 'highlight': adjusted_pvals[2] < p_cutoff},
                     'lt_t': {'p': t_less, 'padj': adjusted_pvals[3], 'highlight': adjusted_pvals[3] < p_cutoff},
-                    'lt_u': {'p': u_less, 'padj': adjusted_pvals[4], 'highlight': adjusted_pvals[4] < p_cutoff},
+                    'lt_u': {'p': t_less, 'padj': adjusted_pvals[4], 'highlight': adjusted_pvals[4] < p_cutoff},
                     'lt_ks': {'p': ks_less, 'padj': adjusted_pvals[5], 'highlight': adjusted_pvals[5] < p_cutoff},
                 }
 
