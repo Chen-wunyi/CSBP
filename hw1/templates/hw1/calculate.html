@@ -9,7 +9,6 @@
         body { background-color: #f8f9fa; color: #333; }
         .navbar-custom { background-color: #2c3e50; }
         .card-header { background-color: #ffffff; font-weight: bold; border-bottom: 2px solid #eaedf1; }
-        /* 老師要求的黃色高亮框樣式 */
         .highlight-yellow { background-color: #fef08a !important; font-weight: 700; }
     </style>
 </head>
@@ -29,7 +28,6 @@
         <form method="POST" id="calculateForm">
             {% csrf_token %}
             <div class="row">
-                <!-- Step 1: Input Two Gene Lists -->
                 <div class="col-md-7">
                     <div class="card shadow-sm mb-4">
                         <div class="card-header">Step 1. Input Two Gene Lists (L1 vs. L2)</div>
@@ -56,7 +54,6 @@
                     </div>
                 </div>
 
-                <!-- Step 2: Quantitative Feature -->
                 <div class="col-md-5">
                     <div class="card shadow-sm mb-4">
                         <div class="card-header">Step 2. Select the Quantitative Feature to be Analyzed</div>
@@ -64,6 +61,24 @@
                             <div class="form-check mt-3">
                                 <input class="form-check-input" type="checkbox" name="features" value="rna_isoform" id="rnaIsoform" checked onclick="return false;">
                                 <label class="form-check-label fw-semibold" for="rnaIsoform"># of protein isoforms</label>
+                            </div>
+
+                            <hr class="my-3">
+                            <div class="mb-2">
+                                <label class="form-label fw-bold small">Multiple hypotheses testing:</label>
+                                <select class="form-select form-select-sm" name="correction_method">
+                                    <option value="fdr_bh" {% if correction_method == 'fdr_bh' %}selected{% endif %}>FDR correction</option>
+                                    <option value="bonferroni" {% if correction_method == 'bonferroni' %}selected{% endif %}>Bonferroni correction</option>
+                                    <option value="no" {% if correction_method == 'no' %}selected{% endif %}>No correction</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label fw-bold small">p-value cut-off:</label>
+                                <select class="form-select form-select-sm" name="p_cutoff">
+                                    <option value="0.01" {% if p_cutoff == 0.01 %}selected{% endif %}>0.01</option>
+                                    <option value="0.05" {% if p_cutoff == 0.05 %}selected{% endif %}>0.05</option>
+                                    <option value="0.001" {% if p_cutoff == 0.001 %}selected{% endif %}>0.001</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -74,58 +89,6 @@
                 <button type="submit" class="btn btn-dark px-5 py-2 fw-bold">Calculate</button>
             </div>
         </form>
-
-        <!-- 🛑 錯誤搜尋區塊：對齊上個作業的 Input Validation Error 格式 -->
-        {% if errors_1 or errors_2 %}
-        <div class="card border-danger shadow-sm mb-4">
-            <div class="card-header bg-danger text-white fw-bold">Input Validation Error</div>
-            <div class="card-body">
-                <p class="text-secondary small mb-3">
-                    Input genes include unknown names, names with multiple IDs, or multiple identifiers for the same WormBase gene. Review the issues below.
-                </p>
-                
-                {% if errors_1 %}
-                <h6 class="fw-bold text-dark mt-2">-- List 1 Errors --</h6>
-                <table class="table table-bordered small">
-                    <thead class="table-light">
-                        <tr><th style="width: 30%;">Input Data</th><th>Validation Message</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for err in errors_1 %}
-                        <tr>
-                            <td class="text-danger fw-semibold">{{ err.input }}</td>
-                            <td>
-                                {{ err.message_title }}
-                                {% if err.detail %}<br><span class="text-primary">{{ err.detail }}</span>{% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% endif %}
-
-                {% if errors_2 %}
-                <h6 class="fw-bold text-dark mt-4">-- List 2 Errors --</h6>
-                <table class="table table-bordered small">
-                    <thead class="table-light">
-                        <tr><th style="width: 30%;">Input Data</th><th>Validation Message</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for err in errors_2 %}
-                        <tr>
-                            <td class="text-danger fw-semibold">{{ err.input }}</td>
-                            <td>
-                                {{ err.message_title }}
-                                {% if err.detail %}<br><span class="text-primary">{{ err.detail }}</span>{% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
 
         <!-- 📊 分析結果顯示區塊 -->
         {% if analysis_results %}
@@ -160,25 +123,6 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light">2. Statistical testing results: six p-values of the three statistical tests</div>
                 <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small">Multiple hypotheses testing:</label>
-                            <select class="form-select form-select-sm" name="correction_method" form="calculateForm">
-                                <option value="fdr_bh">FDR correction</option>
-                                <option value="bonferroni">Bonferroni correction</option>
-                                <option value="no">No correction</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small">p-value cut-off:</label>
-                            <select class="form-select form-select-sm" name="p_cutoff" form="calculateForm">
-                                <option value="0.01">0.01</option>
-                                <option value="0.05">0.05</option>
-                                <option value="0.001">0.001</option>
-                            </select>
-                        </div>
-                    </div>
-
                     <table class="table table-bordered text-center align-middle">
                         <thead class="table-light">
                             <tr>
@@ -209,18 +153,128 @@
         {% endif %}
     </div>
 
+    <!-- 🛑 防呆提示 Modal (對齊上個作業風格，將重複輸入與錯誤分開顯示) -->
+    <div class="modal fade" id="errorModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-white border-bottom-0">
+                    <h5 class="modal-title text-danger fw-bold" style="font-size: 1.5rem;">Warning</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="text-dark fw-semibold mb-3">Input genes contain duplicate inputs, multiple IDs, or unknown names.</p>
+
+                    <!-- INPUT 1 錯誤表格 -->
+                    <div class="card mb-3 border">
+                        <div class="card-header bg-dark text-white text-center py-1">INPUT 1</div>
+                        <table class="table table-bordered mb-0 small">
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold bg-light" style="width: 50%;">Names with multiple IDs</td>
+                                    <td id="l1_multiple_ids" class="text-danger text-center" style="width: 50%;">-</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="fw-bold bg-light">Unknown names</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" id="l1_unknown_names" class="text-danger">-</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="fw-bold bg-light">Duplicate inputs</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" id="l1_duplicates" class="text-danger">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- INPUT 2 錯誤表格 -->
+                    <div class="card mb-3 border">
+                        <div class="card-header bg-dark text-white text-center py-1">INPUT 2</div>
+                        <table class="table table-bordered mb-0 small">
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold bg-light" style="width: 50%;">Names with multiple IDs</td>
+                                    <td id="l2_multiple_ids" class="text-danger text-center" style="width: 50%;">-</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="fw-bold bg-light">Unknown names</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" id="l2_unknown_names" class="text-danger">-</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="fw-bold bg-light">Duplicate inputs</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" id="l2_duplicates" class="text-danger">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-primary w-100 py-2 fw-bold" id="backToEditBtn" data-bs-dismiss="modal" style="background-color: #0d6efd; border: none;">Return and modify</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{ errors_1|json_script:"errors-1-data" }}
+    {{ errors_2|json_script:"errors-2-data" }}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 載入足夠多且具備統計顯著差異的範例資料，點擊後 Calculate 即可看到黃色高亮框
         document.getElementById('loadExample1Btn').addEventListener('click', () => {
-            document.getElementById('gene_input_1').value = "WBGene00002228\nWBGene00017896\nWBGene00001601\nWBGene00002036\nWBGene00000549\nWBGene00002219\nWBGene00020464\nWBGene00013106\nWBGene00001111\nWBGene00002222\nWBGene00003333\nWBGene00004444";
+            document.getElementById('gene_input_1').value = "WBGene00002228\nWBGene00017896\nWBGene00001601\nWBGene00002036";
         });
         document.getElementById('clear1Btn').addEventListener('click', () => { document.getElementById('gene_input_1').value = ""; });
         
         document.getElementById('loadExample2Btn').addEventListener('click', () => {
-            document.getElementById('gene_input_2').value = "WBGene00009701\nWBGene00017799\nWBGene00004446\nWBGene00009987\nWBGene00007488\nWBGene00002068\nWBGene00000144\nWBGene00006751\nWBGene00005555\nWBGene00006666";
+            document.getElementById('gene_input_2').value = "WBGene00009701\nWBGene00017799\nWBGene00004446\nWBGene00009987";
         });
         document.getElementById('clear2Btn').addEventListener('click', () => { document.getElementById('gene_input_2').value = ""; });
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const errors1 = JSON.parse(document.getElementById('errors-1-data').textContent || '[]');
+            const errors2 = JSON.parse(document.getElementById('errors-2-data').textContent || '[]');
+
+            if ((errors1 && errors1.length > 0) || (errors2 && errors2.length > 0)) {
+                let l1_mult = [], l1_unk = [], l1_dup = [];
+                errors1.forEach(e => {
+                    if (e.message_title === 'Multiple WormBase IDs found') l1_mult.push(`${e.input} (${e.detail})`);
+                    else if (e.message_title === 'Unknown name') l1_unk.push(e.input);
+                    else if (e.message_title === 'Duplicate input') l1_dup.push(e.input);
+                });
+                document.getElementById('l1_multiple_ids').innerText = l1_mult.join(', ') || '-';
+                document.getElementById('l1_unknown_names').innerText = l1_unk.join(', ') || '-';
+                document.getElementById('l1_duplicates').innerText = l1_dup.join(', ') || '-';
+
+                let l2_mult = [], l2_unk = [], l2_dup = [];
+                errors2.forEach(e => {
+                    if (e.message_title === 'Multiple WormBase IDs found') l2_mult.push(`${e.input} (${e.detail})`);
+                    else if (e.message_title === 'Unknown name') l2_unk.push(e.input);
+                    else if (e.message_title === 'Duplicate input') l2_dup.push(e.input);
+                });
+                document.getElementById('l2_multiple_ids').innerText = l2_mult.join(', ') || '-';
+                document.getElementById('l2_unknown_names').innerText = l2_unk.join(', ') || '-';
+                document.getElementById('l2_duplicates').innerText = l2_dup.join(', ') || '-';
+
+                const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+                errorModal.show();
+            }
+        });
+
+        const backBtn = document.getElementById('backToEditBtn');
+        if (backBtn) {
+            backBtn.addEventListener('click', function() {
+                const inputArea = document.getElementById('gene_input_1');
+                if (inputArea) {
+                    inputArea.focus();
+                    inputArea.select();
+                }
+            });
+        }
     </script>
 </body>
 </html>
