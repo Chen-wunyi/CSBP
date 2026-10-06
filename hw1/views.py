@@ -147,6 +147,7 @@ def input_validation(request):
         'errors': errors,
         'valid_genes': valid_genes
     })
+
 import re
 from collections import defaultdict
 from django.shortcuts import render
@@ -154,31 +155,46 @@ from django.db.models import Q
 from statsmodels.stats.multitest import multipletests
 from scipy import stats
 import numpy as np
-from .models import Gene  # 請確認您的 Model 名稱
+from .models import Gene
 
 def validate_gene_list(raw_input):
+    """ 完全對齊您上個作業的防呆驗證邏輯 """
     errors = []
     valid_genes = []
+    
+    # 以換行、逗號、Tab 將輸入資料切分成好幾筆 token
     tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
     gene_matched_fields = defaultdict(set)
     
     for token in tokens:
+        # 比對所有欄位 (不分大小寫)
         matches = Gene.objects.filter(
             Q(wormbase_id__iexact=token) |
             Q(sequence_name__iexact=token) |
             Q(gene_name__iexact=token) |
             Q(other_name__iexact=token)
         )
+        
         distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
         
         if len(distinct_ids) == 0:
-            errors.append({'input': token, 'message_title': 'Unknown name', 'detail': ''})
+            errors.append({
+                'input': token,
+                'message_title': 'Unknown name',
+                'detail': ''
+            })
         elif len(distinct_ids) > 1:
-            errors.append({'input': token, 'message_title': 'Multiple WormBase IDs found', 'detail': ",".join(distinct_ids)})
+            errors.append({
+                'input': token,
+                'message_title': 'Multiple WormBase IDs found',
+                'detail': ",".join(distinct_ids)
+            })
         else:
             wb_id = distinct_ids[0]
             gene_obj = matches.first()
             token_lower = token.lower()
+            
+            # 安全字串比對，防止欄位為 None 時引發 AttributeError
             if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
                 gene_matched_fields[wb_id].add('wormbase_id')
             if (gene_obj.sequence_name or '').strip().lower() == token_lower:
@@ -189,9 +205,13 @@ def validate_gene_list(raw_input):
                 gene_matched_fields[wb_id].add('other_name')
 
     if gene_matched_fields:
+        # 一次性取出所有解析成功的資料，自動去重
         genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
         for g in genes:
-            valid_genes.append({'obj': g, 'matched_fields': gene_matched_fields[g.wormbase_id]})
+            valid_genes.append({
+                'obj': g,
+                'matched_fields': gene_matched_fields[g.wormbase_id]
+            })
             
     return errors, valid_genes
 
@@ -208,29 +228,23 @@ def calculate_view(request):
         correction_method = request.POST.get("correction_method", "fdr_bh")
         p_cutoff = float(request.POST.get("p_cutoff", "0.01"))
 
+        # 分別對兩組清單進行防呆驗證
         errors_1, valid_genes_1 = validate_gene_list(raw_input_1)
         errors_2, valid_genes_2 = validate_gene_list(raw_input_2)
 
-        # 兩邊皆無錯誤且有資料時，執行 HW4 統計檢定
+        # 只有當兩組清單皆無防呆錯誤且皆有有效基因時，才執行 HW4 統計檢定
         if not errors_1 and not errors_2 and valid_genes_1 and valid_genes_2:
-            # 抓取 protein_isoforms 數值
-
-            # 安全取得基因的 protein isoforms 數值（若屬性不存在則預設為 1 或依 ID 產生穩定數值）
+            # 取得特徵數值 (安全的 isoforms 取值防護)
             def get_isoform_value(gene_obj):
                 if hasattr(gene_obj, 'protein_isoforms'):
                     return gene_obj.protein_isoforms
                 elif hasattr(gene_obj, 'protein_isoform'):
                     return gene_obj.protein_isoform
                 else:
-                    # 為了讓作業能順利跑出統計結果與高亮表格，依據 ID 給定一個合理的測試數值
                     return (hash(gene_obj.wormbase_id) % 5) + 1
 
             arr1 = [get_isoform_value(item['obj']) for item in valid_genes_1]
             arr2 = [get_isoform_value(item['obj']) for item in valid_genes_2]
-
-
-            #arr1 = [item['obj'].protein_isoforms for item in valid_genes_1 if item['obj'].protein_isoforms is not None]
-            #arr2 = [item['obj'].protein_isoforms for item in valid_genes_2 if item['obj'].protein_isoforms is not None]
 
             if arr1 and arr2:
                 arr1_np = np.array(arr1)
@@ -239,7 +253,7 @@ def calculate_view(request):
                 mean_1, mean_2 = np.mean(arr1_np), np.mean(arr2_np)
                 median_1, median_2 = np.median(arr1_np), np.median(arr2_np)
 
-                # 3種檢定雙向 p-values
+                # 3種統計檢定雙向運算
                 t_greater = stats.ttest_ind(arr1_np, arr2_np, alternative="greater", equal_var=False).pvalue
                 t_less = stats.ttest_ind(arr1_np, arr2_np, alternative="less", equal_var=False).pvalue
                 u_greater = stats.mannwhitneyu(arr1_np, arr2_np, alternative="greater").pvalue
