@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <title>Calculate - Gene Analysis Tool</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 引入 Chart.js 用於 Figure View 繪圖 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { background-color: #f8f9fa; color: #333; }
         .navbar-custom { background-color: #2c3e50; }
@@ -25,7 +27,6 @@
     <div class="container my-4">
         <h4 class="mb-4 text-primary fw-bold">Compare Quantitative Features Between Two Gene Lists</h4>
 
-        <!-- 單一主表單，包覆輸入框與下方的統計參數調整 -->
         <form method="POST" id="calculateForm">
             {% csrf_token %}
             <div class="row">
@@ -64,7 +65,7 @@
                                 <label class="form-check-label fw-semibold" for="rnaIsoform"># of protein isoforms</label>
                             </div>
                             <div class="text-muted small mt-3">
-                                💡 Tip: After entering your lists, click Calculate. You can adjust correction methods and p-value cut-offs directly next to the results table below.
+                                💡 Tip: Click Calculate to view results in Table View or Figure View.
                             </div>
                         </div>
                     </div>
@@ -75,88 +76,120 @@
                 <button type="submit" class="btn btn-dark px-5 py-2 fw-bold">Calculate</button>
             </div>
 
-            <!-- 📊 分析結果顯示區塊 (放在 Form 內，讓下拉選單修改時也能一併送出) -->
+            <!-- 📊 分析結果顯示區塊 (支援 Table View / Figure View 切換) -->
             {% if analysis_results %}
             <div class="mt-5 text-start">
                 <h5 class="text-secondary fw-bold mb-3">Analyzed quantitative feature (QF): # of protein isoforms</h5>
                 
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-light">1. Summary</div>
-                    <div class="card-body p-0">
-                        <table class="table table-bordered mb-0">
-                            <tbody>
-                                <tr>
-                                    <td class="fw-bold bg-light" style="width: 50%;"># of genes which have this feature data</td>
-                                    <td class="text-center text-primary">{{ analysis_results.count_1 }} genes (from {{ analysis_results.total_1 }} input genes)</td>
-                                    <td class="text-center text-primary">{{ analysis_results.count_2 }} genes (from {{ analysis_results.total_2 }} input genes)</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold bg-light">Mean ()</td>
-                                    <td class="text-center">{{ analysis_results.mean_1 }}</td>
-                                    <td class="text-center">{{ analysis_results.mean_2 }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold bg-light">Median ()</td>
-                                    <td class="text-center">{{ analysis_results.median_1 }}</td>
-                                    <td class="text-center">{{ analysis_results.median_2 }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <!-- 視圖切換按鈕 (Table View / Figure View) -->
+                <div class="mb-3 d-flex gap-2">
+                    <button type="button" class="btn btn-primary fw-bold btn-sm" id="btnTableview" onclick="switchView('table')">Table View</button>
+                    <button type="button" class="btn btn-outline-primary fw-bold btn-sm" id="btnFigureview" onclick="switchView('figure')">Figure View</button>
+                </div>
+
+                <!-- 1. TABLE VIEW 內容 -->
+                <div id="tableViewContent">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">1. Summary</div>
+                        <div class="card-body p-0">
+                            <table class="table table-bordered mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold bg-light" style="width: 50%;"># of genes which have this feature data</td>
+                                        <td class="text-center text-primary">{{ analysis_results.count_1 }} genes (from {{ analysis_results.total_1 }} input genes)</td>
+                                        <td class="text-center text-primary">{{ analysis_results.count_2 }} genes (from {{ analysis_results.total_2 }} input genes)</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold bg-light">Mean ()</td>
+                                        <td class="text-center">{{ analysis_results.mean_1 }}</td>
+                                        <td class="text-center">{{ analysis_results.mean_2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold bg-light">Median ()</td>
+                                        <td class="text-center">{{ analysis_results.median_1 }}</td>
+                                        <td class="text-center">{{ analysis_results.median_2 }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 2. Statistical Testing Results -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <span>2. Statistical testing results: six p-values of the three statistical tests</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-4 p-3 bg-light rounded border align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small text-dark">Multiple hypotheses testing:</label>
+                                    <select class="form-select form-select-sm shadow-sm" name="correction_method" onchange="this.form.submit()">
+                                        <option value="fdr_bh" {% if correction_method == 'fdr_bh' %}selected{% endif %}>FDR correction</option>
+                                        <option value="bonferroni" {% if correction_method == 'bonferroni' %}selected{% endif %}>Bonferroni correction</option>
+                                        <option value="no" {% if correction_method == 'no' %}selected{% endif %}>No correction</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small text-dark">p-value cut-off:</label>
+                                    <select class="form-select form-select-sm shadow-sm" name="p_cutoff" onchange="this.form.submit()">
+                                        <option value="0.01" {% if p_cutoff == 0.01 %}selected{% endif %}>0.01</option>
+                                        <option value="0.05" {% if p_cutoff == 0.05 %}selected{% endif %}>0.05</option>
+                                        <option value="0.001" {% if p_cutoff == 0.001 %}selected{% endif %}>0.001</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <table class="table table-bordered text-center align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="text-start">Comparison</th>
+                                        <th>t-test</th>
+                                        <th>U test</th>
+                                        <th>KS test</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="text-start fw-semibold">QF (List 1) > QF (List 2)</td>
+                                        <td class="{% if analysis_results.gt_t.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_t.padj|stringformat:".4e" }}</td>
+                                        <td class="{% if analysis_results.gt_u.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_u.padj|stringformat:".4e" }}</td>
+                                        <td class="{% if analysis_results.gt_ks.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_ks.padj|stringformat:".4e" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-start fw-semibold">QF (List 1) &lt; QF (List 2)</td>
+                                        <td class="{% if analysis_results.lt_t.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_t.padj|stringformat:".4e" }}</td>
+                                        <td class="{% if analysis_results.lt_u.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_u.padj|stringformat:".4e" }}</td>
+                                        <td class="{% if analysis_results.lt_ks.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_ks.padj|stringformat:".4e" }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 2. Statistical Testing Results (下拉選單放置於此，緊鄰表格上方) -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <span>2. Statistical testing results: six p-values of the three statistical tests</span>
-                    </div>
-                    <div class="card-body">
-                        <!-- 調整參數區塊：放置於表格上方，支援即時更改並重新計算 -->
-                        <div class="row mb-4 p-3 bg-light rounded border align-items-end">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold small text-dark">Multiple hypotheses testing:</label>
-                                <select class="form-select form-select-sm shadow-sm" name="correction_method" onchange="this.form.submit()">
-                                    <option value="fdr_bh" {% if correction_method == 'fdr_bh' %}selected{% endif %}>FDR correction</option>
-                                    <option value="bonferroni" {% if correction_method == 'bonferroni' %}selected{% endif %}>Bonferroni correction</option>
-                                    <option value="no" {% if correction_method == 'no' %}selected{% endif %}>No correction</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold small text-dark">p-value cut-off:</label>
-                                <select class="form-select form-select-sm shadow-sm" name="p_cutoff" onchange="this.form.submit()">
-                                    <option value="0.01" {% if p_cutoff == 0.01 %}selected{% endif %}>0.01</option>
-                                    <option value="0.05" {% if p_cutoff == 0.05 %}selected{% endif %}>0.05</option>
-                                    <option value="0.001" {% if p_cutoff == 0.001 %}selected{% endif %}>0.001</option>
-                                </select>
+                <!-- 2. FIGURE VIEW 內容 (參考投影片圖表展示)[cite: 13] -->
+                <div id="figureViewContent" style="display: none;">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">Figure View: Distribution & Cumulative Distribution Function (CDF) Plots</div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <h6 class="text-center fw-bold text-secondary">Distribution Box / Scatter Plot</h6>
+                                    <div style="position: relative; height: 300px;">
+                                        <canvas id="distChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <h6 class="text-center fw-bold text-secondary">Cumulative Distribution Function (CDF) Plot</h6>
+                                    <div style="position: relative; height: 300px;">
+                                        <canvas id="cdfChart"></canvas>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
-                        <table class="table table-bordered text-center align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="text-start">Comparison</th>
-                                    <th>t-test</th>
-                                    <th>U test</th>
-                                    <th>KS test</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td class="text-start fw-semibold">QF (List 1) > QF (List 2)</td>
-                                    <td class="{% if analysis_results.gt_t.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_t.padj|stringformat:".4e" }}</td>
-                                    <td class="{% if analysis_results.gt_u.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_u.padj|stringformat:".4e" }}</td>
-                                    <td class="{% if analysis_results.gt_ks.highlight %}highlight-yellow{% endif %}">{{ analysis_results.gt_ks.padj|stringformat:".4e" }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="text-start fw-semibold">QF (List 1) &lt; QF (List 2)</td>
-                                    <td class="{% if analysis_results.lt_t.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_t.padj|stringformat:".4e" }}</td>
-                                    <td class="{% if analysis_results.lt_u.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_u.padj|stringformat:".4e" }}</td>
-                                    <td class="{% if analysis_results.lt_ks.highlight %}highlight-yellow{% endif %}">{{ analysis_results.lt_ks.padj|stringformat:".4e" }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
                     </div>
                 </div>
+
             </div>
             {% endif %}
         </form>
@@ -180,18 +213,10 @@
                                     <td class="fw-bold bg-light" style="width: 50%;">Names with multiple IDs</td>
                                     <td id="l1_multiple_ids" class="text-danger text-center" style="width: 50%;">-</td>
                                 </tr>
-                                <tr>
-                                    <td colspan="2" class="fw-bold bg-light">Unknown names</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="2" id="l1_unknown_names" class="text-danger">-</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="2" class="fw-bold bg-light">Duplicate inputs</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="2" id="l1_duplicates" class="text-danger">-</td>
-                                </tr>
+                                <tr><td colspan="2" class="fw-bold bg-light">Unknown names</td></tr>
+                                <tr><td colspan="2" id="l1_unknown_names" class="text-danger">-</td></tr>
+                                <tr><td colspan="2" class="fw-bold bg-light">Duplicate inputs</td></tr>
+                                <tr><td colspan="2" id="l1_duplicates" class="text-danger">-</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -204,18 +229,9 @@
                                     <td class="fw-bold bg-light" style="width: 50%;">Names with multiple IDs</td>
                                     <td id="l2_multiple_ids" class="text-danger text-center" style="width: 50%;">-</td>
                                 </tr>
-                                <tr>
-                                    <td colspan="2" class="fw-bold bg-light">Unknown names</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="2" id="l2_unknown_names" class="text-danger">-</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="2" class="fw-bold bg-light">Duplicate inputs</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="2" id="l2_duplicates" class="text-danger">-</td>
-                                </tr>
+                                <tr><td colspan="2" class="fw-bold bg-light">Unknown names</td></tr>
+                                <tr><td colspan="2" id="l2_unknown_names" class="text-danger">-</td></tr>
+                                <tr><td colspan="2" id="l2_duplicates" class="text-danger">-</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -229,9 +245,99 @@
 
     {{ errors_1|json_script:"errors-1-data" }}
     {{ errors_2|json_script:"errors-2-data" }}
+    {% if analysis_results %}
+    {{ analysis_results.arr1|json_script:"arr1-data" }}
+    {{ analysis_results.arr2|json_script:"arr2-data" }}
+    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 視圖切換函數 (Table View vs Figure View)
+        function switchView(viewType) {
+            const tableDiv = document.getElementById('tableViewContent');
+            const figureDiv = document.getElementById('figureViewContent');
+            const btnTable = document.getElementById('btnTableview');
+            const btnFigure = document.getElementById('btnFigureview');
+
+            if (viewType === 'table') {
+                tableDiv.style.display = 'block';
+                figureDiv.style.display = 'none';
+                btnTable.className = 'btn btn-primary fw-bold btn-sm';
+                btnFigure.className = 'btn btn-outline-primary fw-bold btn-sm';
+            } else {
+                tableDiv.style.display = 'none';
+                figureDiv.style.display = 'block';
+                btnFigure.className = 'btn btn-primary fw-bold btn-sm';
+                btnTable.className = 'btn btn-outline-primary fw-bold btn-sm';
+                
+                // 確保切換過去時觸發 Chart 渲染
+                renderCharts();
+            }
+        }
+
+        // 渲染圖表 (Chart.js)
+        let chartsInitialized = false;
+        function renderCharts() {
+            if (chartsInitialized) return;
+            
+            const arr1Elem = document.getElementById('arr1-data');
+            const arr2Elem = document.getElementById('arr2-data');
+            if (!arr1Elem || !arr2Elem) return;
+
+            const arr1 = JSON.parse(arr1Elem.textContent || '[]');
+            const arr2 = JSON.parse(arr2Elem.textContent || '[]');
+
+            // 1. Distribution Chart (Scatter / Box approximation)
+            const ctxDist = document.getElementById('distChart').getContext('2d');
+            const scatterData1 = arr1.map((val, idx) => ({x: 1 + (Math.random()*0.4 - 0.2), y: val}));
+            const scatterData2 = arr2.map((val, idx) => ({x: 2 + (Math.random()*0.4 - 0.2), y: val}));
+
+            new Chart(ctxDist, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: 'L1', data: scatterData1, backgroundColor: 'rgba(13, 110, 253, 0.7)' },
+                        { label: 'L2', data: scatterData2, backgroundColor: 'rgba(253, 126, 20, 0.7)' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', min: 0.5, max: 2.5, ticks: { callback: val => val === 1 ? 'L1' : (val === 2 ? 'L2' : '') } },
+                        y: { title: { display: true, text: '# of protein isoforms' } }
+                    }
+                }
+            });
+
+            // 2. CDF Chart
+            const ctxCdf = document.getElementById('cdfChart').getContext('2d');
+            const getCdfPoints = (arr) => {
+                const sorted = [...arr].sort((a,b) => a - b);
+                return sorted.map((val, idx) => ({x: val, y: (idx + 1) / sorted.length}));
+            };
+
+            new Chart(ctxCdf, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        { label: 'L1', data: getCdfPoints(arr1), borderColor: '#0d6efd', backgroundColor: 'transparent', tension: 0.1 },
+                        { label: 'L2', data: getCdfPoints(arr2), borderColor: '#fd7e14', backgroundColor: 'transparent', tension: 0.1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: 'X: # of protein isoforms' } },
+                        y: { min: 0, max: 1, title: { display: true, text: 'Prob (X ≤ x)' } }
+                    }
+                }
+            });
+
+            chartsInitialized = true;
+        }
+
         document.getElementById('loadExample1Btn').addEventListener('click', () => {
             document.getElementById('gene_input_1').value = "WBGene00002228\nWBGene00017896\nWBGene00001601\nWBGene00002036";
         });

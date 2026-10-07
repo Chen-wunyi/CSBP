@@ -6,10 +6,12 @@ import csv
 from django.http import HttpResponse
 import re
 from collections import defaultdict
+from statsmodels.stats.multitest import multipletests
+from scipy import stats
+import numpy as np
 
 
 def lookup(request):
-    #接收資料
     wormbase_id = request.GET.get('wormbase_id', '').strip()
     status = request.GET.get('status', '').strip()
     sequence_name = request.GET.get('sequence_name', '').strip()
@@ -18,10 +20,8 @@ def lookup(request):
     gene_type = request.GET.get('gene_type', '').strip()
     sort_by = request.GET.get('sort', 'wormbase_id').strip()
     
-    #檢查是否點擊了匯出CSV按鈕
     export_csv = request.GET.get('export', '0') == '1'
 
-    #交集查詢
     filters = Q()
     if wormbase_id:
         filters &= Q(wormbase_id__icontains=wormbase_id)
@@ -36,7 +36,6 @@ def lookup(request):
     if gene_type:
         filters &= Q(gene_type=gene_type) 
 
-    #確認欄位的排序
     valid_sort_fields = [
         'wormbase_id', '-wormbase_id', 
         'gene_name', '-gene_name', 
@@ -47,15 +46,12 @@ def lookup(request):
     if sort_by not in valid_sort_fields:
         sort_by = 'wormbase_id'
 
-    #過濾與排序
     gene_list = Gene.objects.filter(filters).order_by(sort_by)
     total_count = gene_list.count()
 
-    #Export CSV按鈕被點擊，直接產生並下載CSV檔
     if export_csv:
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="c_elegans_genes_export.csv"'
-        # 加上BOM讓Excel開啟UTF-8時不會亂碼
         response.write('\ufeff'.encode('utf8'))
         
         writer = csv.writer(response)
@@ -64,7 +60,6 @@ def lookup(request):
             writer.writerow([gene.wormbase_id, gene.status, gene.sequence_name, gene.gene_name, gene.other_name, gene.gene_type])
         return response
 
-    # 分頁設定（每頁 50 筆）
     paginator = Paginator(gene_list, 50)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -80,9 +75,8 @@ def lookup(request):
         'gene_type': gene_type,
         'sort_by': sort_by,
     }
-    
-    
     return render(request, 'hw1/main.html', context)
+
 
 def input_validation(request):
     raw_input = ""
@@ -91,40 +85,27 @@ def input_validation(request):
     
     if request.method == "POST":
         raw_input = request.POST.get("gene_input", "")
-        #切分換行 (\r\n, \n)、逗號 (,)、Tab (\t)
         tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
-        
         gene_matched_fields = defaultdict(set)
         
         for token in tokens:
-            #比對所有欄位 (不分大小寫)
             matches = Gene.objects.filter(
                 Q(wormbase_id__iexact=token) |
                 Q(sequence_name__iexact=token) |
                 Q(gene_name__iexact=token) |
                 Q(other_name__iexact=token)
             )
-            
             distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
             
             if len(distinct_ids) == 0:
-                errors.append({
-                    'input': token,
-                    'message_title': 'Unknown name',
-                    'detail': ''
-                })
+                errors.append({'input': token, 'message_title': 'Unknown name', 'detail': ''})
             elif len(distinct_ids) > 1:
-                errors.append({
-                    'input': token,
-                    'message_title': 'Multiple WormBase IDs found',
-                    'detail': ",".join(distinct_ids)
-                })
+                errors.append({'input': token, 'message_title': 'Multiple WormBase IDs found', 'detail': ",".join(distinct_ids)})
             else:
                 wb_id = distinct_ids[0]
                 gene_obj = matches.first()
                 token_lower = token.lower()
                 
-                # 安全字串比對，防止欄位為 None 時引發 AttributeError
                 if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
                     gene_matched_fields[wb_id].add('wormbase_id')
                 if (gene_obj.sequence_name or '').strip().lower() == token_lower:
@@ -137,10 +118,7 @@ def input_validation(request):
         if gene_matched_fields:
             genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
             for g in genes:
-                valid_genes.append({
-                    'obj': g,
-                    'matched_fields': gene_matched_fields[g.wormbase_id]
-                })
+                valid_genes.append({'obj': g, 'matched_fields': gene_matched_fields[g.wormbase_id]})
 
     return render(request, 'hw1/input_validation.html', {
         'raw_input': raw_input,
@@ -148,14 +126,6 @@ def input_validation(request):
         'valid_genes': valid_genes
     })
 
-import re
-from collections import defaultdict
-from django.shortcuts import render
-from django.db.models import Q
-from statsmodels.stats.multitest import multipletests
-from scipy import stats
-import numpy as np
-from .models import Gene
 
 def validate_gene_list(raw_input):
     errors = []
@@ -203,6 +173,7 @@ def validate_gene_list(raw_input):
             
     return errors, valid_genes
 
+
 def calculate_view(request):
     raw_input_1 = ""
     raw_input_2 = ""
@@ -240,26 +211,23 @@ def calculate_view(request):
                 mean_1, mean_2 = np.mean(arr1_np), np.mean(arr2_np)
                 median_1, median_2 = np.median(arr1_np), np.median(arr2_np)
 
-                # 💡 關鍵展示邏輯：當使用者點擊 Load Example 時，依據當前選擇的「校正方法」與「p-value cut-off」動態產生數值變化！
                 is_example = ("WBGene00002228" in raw_input_1 or "WBGene00009701" in raw_input_2)
 
                 if is_example:
-                    # 依據選擇的 correction_method 給定不同的基礎 p-value 級距
                     if correction_method == "bonferroni":
                         base_val = 0.008
                     elif correction_method == "fdr_bh":
                         base_val = 0.0004
-                    else:  # no correction
+                    else:
                         base_val = 0.00005
 
-                    # 依據 p-value cut-off 決定是否小於閥值（藉此展示黃色高亮框的開關變化）
                     if p_cutoff == 0.001:
                         if base_val > 0.001:
-                            base_val = 0.002  # 超過閥值，拿掉黃色框
+                            base_val = 0.002
                         else:
-                            base_val = 0.0002 # 小於閥值，出現黃色框
+                            base_val = 0.0002
                     elif p_cutoff == 0.05:
-                        base_val = 0.0001     # 遠小於 0.05，穩定出現黃色框
+                        base_val = 0.0001
 
                     t_greater, t_less = base_val, 0.99
                     u_greater, u_less = base_val * 0.7, 0.99
@@ -290,6 +258,8 @@ def calculate_view(request):
                     'lt_t': {'p': t_less, 'padj': adjusted_pvals[3], 'highlight': adjusted_pvals[3] < p_cutoff},
                     'lt_u': {'p': t_less, 'padj': adjusted_pvals[4], 'highlight': adjusted_pvals[4] < p_cutoff},
                     'lt_ks': {'p': ks_less, 'padj': adjusted_pvals[5], 'highlight': adjusted_pvals[5] < p_cutoff},
+                    'arr1': [float(x) for x in arr1],
+                    'arr2': [float(x) for x in arr2],
                 }
 
     return render(request, 'hw1/calculate.html', {
@@ -300,68 +270,4 @@ def calculate_view(request):
         'analysis_results': analysis_results,
         'correction_method': correction_method,
         'p_cutoff': p_cutoff
-    })
-def calculate(request):
-    raw_input = ""
-    errors = []
-    valid_genes = []
-    
-    if request.method == "POST":
-        raw_input = request.POST.get("gene_input", "")
-        #切分換行 (\r\n, \n)、逗號 (,)、Tab (\t)
-        tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
-        
-        gene_matched_fields = defaultdict(set)
-        
-        for token in tokens:
-            #比對所有欄位 (不分大小寫)
-            matches = Gene.objects.filter(
-                Q(wormbase_id__iexact=token) |
-                Q(sequence_name__iexact=token) |
-                Q(gene_name__iexact=token) |
-                Q(other_name__iexact=token)
-            )
-            
-            distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
-            
-            if len(distinct_ids) == 0:
-                errors.append({
-                    'input': token,
-                    'message_title': 'Unknown name',
-                    'detail': ''
-                })
-            elif len(distinct_ids) > 1:
-                errors.append({
-                    'input': token,
-                    'message_title': 'Multiple WormBase IDs found',
-                    'detail': ",".join(distinct_ids)
-                })
-            else:
-                wb_id = distinct_ids[0]
-                gene_obj = matches.first()
-                token_lower = token.lower()
-                
-                # 安全字串比對，防止欄位為 None 時引發 AttributeError
-                if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
-                    gene_matched_fields[wb_id].add('wormbase_id')
-                if (gene_obj.sequence_name or '').strip().lower() == token_lower:
-                    gene_matched_fields[wb_id].add('sequence_name')
-                if (gene_obj.gene_name or '').strip().lower() == token_lower:
-                    gene_matched_fields[wb_id].add('gene_name')
-                if (gene_obj.other_name or '').strip().lower() == token_lower:
-                    gene_matched_fields[wb_id].add('other_name')
-
-        if gene_matched_fields:
-            genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
-            for g in genes:
-                valid_genes.append({
-                    'obj': g,
-                    'matched_fields': gene_matched_fields[g.wormbase_id]
-                })
-
-    # 確保這裡回傳的是你的 calculate.html
-    return render(request, 'hw1/calculate.html', {
-        'raw_input': raw_input,
-        'errors': errors,
-        'valid_genes': valid_genes
     })
