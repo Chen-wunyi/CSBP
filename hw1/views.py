@@ -101,7 +101,7 @@ def lookup(request):
     }
     return render(request, 'hw1/main.html', context)
 
-
+'''
 def input_validation(request):
     raw_input = ''
     errors = []
@@ -292,7 +292,147 @@ def validate_gene_list(raw_input):
             })
 
     return errors, valid_genes
+'''
+def input_validation(request):
+    raw_input = ""
+    errors = []
+    valid_genes = []
+    
+    if request.method == "POST":
+        raw_input = request.POST.get("gene_input", "")
+        tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
+        gene_matched_fields = defaultdict(set)
+        
+        # 【優化】改用 __in 批次查詢，避免產生過大的 Expression tree
+        batch_size = 500
+        for i in range(0, len(tokens), batch_size):
+            batch_tokens = tokens[i:i + batch_size]
+            
+            # 建立包含大小寫的擴展清單以支援大小寫不拘比對
+            extended_tokens = set()
+            for t in batch_tokens:
+                extended_tokens.add(t)
+                extended_tokens.add(t.lower())
+                extended_tokens.add(t.upper())
 
+            # 用 __in 一次查詢整批，Q 條件只有 4 個，絕不會超過樹狀深度限制
+            matches = list(Gene.objects.filter(
+                Q(wormbase_id__in=extended_tokens) |
+                Q(sequence_name__in=extended_tokens) |
+                Q(gene_name__in=extended_tokens) |
+                Q(other_name__in=extended_tokens)
+            ))
+
+            # 對該批次的 token 進行記憶體內比對
+            for token in batch_tokens:
+                token_lower = token.lower()
+                matched_objs = [
+                    g for g in matches 
+                    if token_lower in [
+                        (g.wormbase_id or '').lower(),
+                        (g.sequence_name or '').lower(),
+                        (g.gene_name or '').lower(),
+                        (g.other_name or '').lower()
+                    ]
+                ]
+                
+                distinct_ids = list(set(g.wormbase_id for g in matched_objs))
+                
+                if len(distinct_ids) == 0:
+                    errors.append({'input': token, 'message_title': 'Unknown name', 'detail': ''})
+                elif len(distinct_ids) > 1:
+                    errors.append({'input': token, 'message_title': 'Multiple WormBase IDs found', 'detail': ",".join(distinct_ids)})
+                else:
+                    wb_id = distinct_ids[0]
+                    gene_obj = next(g for g in matched_objs if g.wormbase_id == wb_id)
+                    
+                    if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
+                        gene_matched_fields[wb_id].add('wormbase_id')
+                    if (gene_obj.sequence_name or '').strip().lower() == token_lower:
+                        gene_matched_fields[wb_id].add('sequence_name')
+                    if (gene_obj.gene_name or '').strip().lower() == token_lower:
+                        gene_matched_fields[wb_id].add('gene_name')
+                    if (gene_obj.other_name or '').strip().lower() == token_lower:
+                        gene_matched_fields[wb_id].add('other_name')
+
+        if gene_matched_fields:
+            genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
+            for g in genes.iterator(chunk_size=500):
+                valid_genes.append({'obj': g, 'matched_fields': gene_matched_fields[g.wormbase_id]})
+                
+    return render(request, 'hw1/input_validation.html', {
+        'raw_input': raw_input,
+        'errors': errors,
+        'valid_genes': valid_genes
+    })
+
+
+def validate_gene_list(raw_input):
+    errors = []
+    valid_genes = []
+    tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
+    seen_wb_ids = {}
+    gene_matched_fields = defaultdict(set)
+    
+    batch_size = 500
+    for i in range(0, len(tokens), batch_size):
+        batch_tokens = tokens[i:i + batch_size]
+        
+        extended_tokens = set()
+        for t in batch_tokens:
+            extended_tokens.add(t)
+            extended_tokens.add(t.lower())
+            extended_tokens.add(t.upper())
+
+        matches = list(Gene.objects.filter(
+            Q(wormbase_id__in=extended_tokens) |
+            Q(sequence_name__in=extended_tokens) |
+            Q(gene_name__in=extended_tokens) |
+            Q(other_name__in=extended_tokens)
+        ))
+        
+        for token in batch_tokens:
+            token_lower = token.lower()
+            matched_objs = [
+                g for g in matches 
+                if token_lower in [
+                    (g.wormbase_id or '').lower(),
+                    (g.sequence_name or '').lower(),
+                    (g.gene_name or '').lower(),
+                    (g.other_name or '').lower()
+                ]
+            ]
+            
+            distinct_ids = list(set(g.wormbase_id for g in matched_objs))
+            
+            if len(distinct_ids) == 0:
+                errors.append({'input': token, 'message_title': 'Unknown name', 'detail': ''})
+            elif len(distinct_ids) > 1:
+                errors.append({'input': token, 'message_title': 'Multiple WormBase IDs found', 'detail': ",".join(distinct_ids)})
+            else:
+                wb_id = distinct_ids[0]
+                gene_obj = next(g for g in matched_objs if g.wormbase_id == wb_id)
+                
+                if wb_id in seen_wb_ids:
+                    errors.append({'input': token, 'message_title': 'Duplicate input', 'detail': f'Refers to same gene as {seen_wb_ids[wb_id]}'})
+                    continue
+                seen_wb_ids[wb_id] = token
+                
+                if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('wormbase_id')
+                if (gene_obj.sequence_name or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('sequence_name')
+                if (gene_obj.gene_name or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('gene_name')
+                if (gene_obj.other_name or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('other_name')
+
+    if gene_matched_fields and not errors:
+        genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
+        for g in genes.iterator(chunk_size=500):
+            valid_genes.append({'obj': g, 'matched_fields': gene_matched_fields[g.wormbase_id]})
+            
+    return errors, valid_genes
 
 def calculate_view(request):
     raw_input_1 = ''
