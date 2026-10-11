@@ -1,14 +1,15 @@
-from django.shortcuts import render
-from django.db.models import Q
-from django.core.paginator import Paginator
-from .models import Gene
-import csv
-from django.http import HttpResponse
-import re
 from collections import defaultdict
-from statsmodels.stats.multitest import multipletests
-from scipy import stats
+import csv
+import re
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import render
 import numpy as np
+from scipy import stats
+from statsmodels.stats.multitest import multipletests
+
+from .models import Gene
 
 
 def lookup(request):
@@ -19,7 +20,7 @@ def lookup(request):
     other_name = request.GET.get('other_name', '').strip()
     gene_type = request.GET.get('gene_type', '').strip()
     sort_by = request.GET.get('sort', 'wormbase_id').strip()
-    
+
     export_csv = request.GET.get('export', '0') == '1'
 
     filters = Q()
@@ -34,30 +35,53 @@ def lookup(request):
     if other_name:
         filters &= Q(other_name__icontains=other_name)
     if gene_type:
-        filters &= Q(gene_type=gene_type) 
+        filters &= Q(gene_type=gene_type)
 
     valid_sort_fields = [
-        'wormbase_id', '-wormbase_id', 
-        'gene_name', '-gene_name', 
-        'status', '-status', 
-        'gene_type', '-gene_type'
+        'wormbase_id',
+        '-wormbase_id',
+        'gene_name',
+        '-gene_name',
+        'status',
+        '-status',
+        'gene_type',
+        '-gene_type',
     ]
-    
+
     if sort_by not in valid_sort_fields:
         sort_by = 'wormbase_id'
 
     gene_list = Gene.objects.filter(filters).order_by(sort_by)
     total_count = gene_list.count()
 
+    # 【優化 1】CSV 匯出改用 iterator 批次串流，避免一次載入全部資料導致記憶體爆掉
     if export_csv:
         response = HttpResponse(content_type='text/csv; charset=utf-8')
-        response['Content-Disposition'] = 'attachment; filename="c_elegans_genes_export.csv"'
+        response['Content-Disposition'] = (
+            'attachment; filename="c_elegans_genes_export.csv"'
+        )
         response.write('\ufeff'.encode('utf8'))
-        
+
         writer = csv.writer(response)
-        writer.writerow(['WormBase ID', 'Status', 'Sequence Name', 'Gene Name', 'Other Name', 'Gene Type'])
-        for gene in gene_list:
-            writer.writerow([gene.wormbase_id, gene.status, gene.sequence_name, gene.gene_name, gene.other_name, gene.gene_type])
+        writer.writerow([
+            'WormBase ID',
+            'Status',
+            'Sequence Name',
+            'Gene Name',
+            'Other Name',
+            'Gene Type',
+        ])
+
+        # 每次只從資料庫抓 1000 筆處理，釋放記憶體
+        for gene in gene_list.iterator(chunk_size=1000):
+            writer.writerow([
+                gene.wormbase_id,
+                gene.status,
+                gene.sequence_name,
+                gene.gene_name,
+                gene.other_name,
+                gene.gene_type,
+            ])
         return response
 
     paginator = Paginator(gene_list, 50)
@@ -79,52 +103,105 @@ def lookup(request):
 
 
 def input_validation(request):
-    raw_input = ""
+    raw_input = ''
     errors = []
     valid_genes = []
-    
-    if request.method == "POST":
-        raw_input = request.POST.get("gene_input", "")
-        tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
+
+    if request.method == 'POST':
+        raw_input = request.POST.get('gene_input', '')
+        tokens = [
+            t.strip()
+            for t in re.split(r'[\r\n,\t]+', raw_input)
+            if t.strip()
+        ]
         gene_matched_fields = defaultdict(set)
-        
-        for token in tokens:
-            matches = Gene.objects.filter(
-                Q(wormbase_id__iexact=token) |
-                Q(sequence_name__iexact=token) |
-                Q(gene_name__iexact=token) |
-                Q(other_name__iexact=token)
-            )
-            distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
-            
-            if len(distinct_ids) == 0:
-                errors.append({'input': token, 'message_title': 'Unknown name', 'detail': ''})
-            elif len(distinct_ids) > 1:
-                errors.append({'input': token, 'message_title': 'Multiple WormBase IDs found', 'detail': ",".join(distinct_ids)})
-            else:
-                wb_id = distinct_ids[0]
-                gene_obj = matches.first()
+
+        # 【優化 2】將大筆輸入分批處理（每批 500 個 token），避免單次查詢過大
+        batch_size = 500
+        for i in range(0, len(tokens), batch_size):
+            batch_tokens = tokens[i : i + batch_size]
+
+            # 批次查詢符合條件的基因
+            batch_filters = Q()
+            for token in batch_tokens:
+                batch_filters |= (
+                    Q(wormbase_id__iexact=token)
+                    | Q(sequence_name__iexact=token)
+                    | Q(gene_name__iexact=token)
+                    | Q(other_name__iexact=token)
+                )
+
+            matches = list(Gene.objects.filter(batch_filters))
+
+            # 對該批次的 token 進行記憶體內比對
+            for token in batch_tokens:
                 token_lower = token.lower()
-                
-                if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
-                    gene_matched_fields[wb_id].add('wormbase_id')
-                if (gene_obj.sequence_name or '').strip().lower() == token_lower:
-                    gene_matched_fields[wb_id].add('sequence_name')
-                if (gene_obj.gene_name or '').strip().lower() == token_lower:
-                    gene_matched_fields[wb_id].add('gene_name')
-                if (gene_obj.other_name or '').strip().lower() == token_lower:
-                    gene_matched_fields[wb_id].add('other_name')
+                matched_objs = [
+                    g
+                    for g in matches
+                    if token_lower
+                    in [
+                        (g.wormbase_id or '').lower(),
+                        (g.sequence_name or '').lower(),
+                        (g.gene_name or '').lower(),
+                        (g.other_name or '').lower(),
+                    ]
+                ]
+
+                distinct_ids = list(
+                    set(g.wormbase_id for g in matched_objs)
+                )
+
+                if len(distinct_ids) == 0:
+                    errors.append({
+                        'input': token,
+                        'message_title': 'Unknown name',
+                        'detail': '',
+                    })
+                elif len(distinct_ids) > 1:
+                    errors.append({
+                        'input': token,
+                        'message_title': 'Multiple WormBase IDs found',
+                        'detail': ','.join(distinct_ids),
+                    })
+                else:
+                    wb_id = distinct_ids[0]
+                    gene_obj = next(
+                        g for g in matched_objs if g.wormbase_id == wb_id
+                    )
+
+                    if (
+                        gene_obj.wormbase_id or ''
+                    ).strip().lower() == token_lower:
+                        gene_matched_fields[wb_id].add('wormbase_id')
+                    if (
+                        gene_obj.sequence_name or ''
+                    ).strip().lower() == token_lower:
+                        gene_matched_fields[wb_id].add('sequence_name')
+                    if (gene_obj.gene_name or '').strip().lower() == token_lower:
+                        gene_matched_fields[wb_id].add('gene_name')
+                    if (gene_obj.other_name or '').strip().lower() == token_lower:
+                        gene_matched_fields[wb_id].add('other_name')
 
         if gene_matched_fields:
-            genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
-            for g in genes:
-                valid_genes.append({'obj': g, 'matched_fields': gene_matched_fields[g.wormbase_id]})
+            genes = Gene.objects.filter(
+                wormbase_id__in=gene_matched_fields.keys()
+            ).order_by('wormbase_id')
+            for g in genes.iterator(chunk_size=500):
+                valid_genes.append({
+                    'obj': g,
+                    'matched_fields': gene_matched_fields[g.wormbase_id],
+                })
 
-    return render(request, 'hw1/input_validation.html', {
-        'raw_input': raw_input,
-        'errors': errors,
-        'valid_genes': valid_genes
-    })
+    return render(
+        request,
+        'hw1/input_validation.html',
+        {
+            'raw_input': raw_input,
+            'errors': errors,
+            'valid_genes': valid_genes,
+        },
+    )
 
 
 def validate_gene_list(raw_input):
@@ -133,66 +210,110 @@ def validate_gene_list(raw_input):
     tokens = [t.strip() for t in re.split(r'[\r\n,\t]+', raw_input) if t.strip()]
     seen_wb_ids = {}
     gene_matched_fields = defaultdict(set)
-    
-    for token in tokens:
-        matches = Gene.objects.filter(
-            Q(wormbase_id__iexact=token) |
-            Q(sequence_name__iexact=token) |
-            Q(gene_name__iexact=token) |
-            Q(other_name__iexact=token)
-        )
-        distinct_ids = list(matches.values_list('wormbase_id', flat=True).distinct())
-        
-        if len(distinct_ids) == 0:
-            errors.append({'input': token, 'message_title': 'Unknown name', 'detail': ''})
-        elif len(distinct_ids) > 1:
-            errors.append({'input': token, 'message_title': 'Multiple WormBase IDs found', 'detail': ",".join(distinct_ids)})
-        else:
-            wb_id = distinct_ids[0]
-            gene_obj = matches.first()
-            token_lower = token.lower()
-            
-            if wb_id in seen_wb_ids:
-                errors.append({'input': token, 'message_title': 'Duplicate input', 'detail': f'Refers to same gene as {seen_wb_ids[wb_id]}'})
-                continue
-            seen_wb_ids[wb_id] = token
 
-            if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
-                gene_matched_fields[wb_id].add('wormbase_id')
-            if (gene_obj.sequence_name or '').strip().lower() == token_lower:
-                gene_matched_fields[wb_id].add('sequence_name')
-            if (gene_obj.gene_name or '').strip().lower() == token_lower:
-                gene_matched_fields[wb_id].add('gene_name')
-            if (gene_obj.other_name or '').strip().lower() == token_lower:
-                gene_matched_fields[wb_id].add('other_name')
+    # 【優化 3】同樣對計算頁面的清單驗證進行批次優化
+    batch_size = 500
+    for i in range(0, len(tokens), batch_size):
+        batch_tokens = tokens[i : i + batch_size]
+
+        batch_filters = Q()
+        for token in batch_tokens:
+            batch_filters |= (
+                Q(wormbase_id__iexact=token)
+                | Q(sequence_name__iexact=token)
+                | Q(gene_name__iexact=token)
+                | Q(other_name__iexact=token)
+            )
+
+        matches = list(Gene.objects.filter(batch_filters))
+
+        for token in batch_tokens:
+            token_lower = token.lower()
+            matched_objs = [
+                g
+                for g in matches
+                if token_lower
+                in [
+                    (g.wormbase_id or '').lower(),
+                    (g.sequence_name or '').lower(),
+                    (g.gene_name or '').lower(),
+                    (g.other_name or '').lower(),
+                ]
+            ]
+
+            distinct_ids = list(set(g.wormbase_id for g in matched_objs))
+
+            if len(distinct_ids) == 0:
+                errors.append({
+                    'input': token,
+                    'message_title': 'Unknown name',
+                    'detail': '',
+                })
+            elif len(distinct_ids) > 1:
+                errors.append({
+                    'input': token,
+                    'message_title': 'Multiple WormBase IDs found',
+                    'detail': ','.join(distinct_ids),
+                })
+            else:
+                wb_id = distinct_ids[0]
+                gene_obj = next(g for g in matched_objs if g.wormbase_id == wb_id)
+
+                if wb_id in seen_wb_ids:
+                    errors.append({
+                        'input': token,
+                        'message_title': 'Duplicate input',
+                        'detail': (
+                            f'Refers to same gene as {seen_wb_ids[wb_id]}'
+                        ),
+                    })
+                    continue
+                seen_wb_ids[wb_id] = token
+
+                if (gene_obj.wormbase_id or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('wormbase_id')
+                if (
+                    gene_obj.sequence_name or ''
+                ).strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('sequence_name')
+                if (gene_obj.gene_name or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('gene_name')
+                if (gene_obj.other_name or '').strip().lower() == token_lower:
+                    gene_matched_fields[wb_id].add('other_name')
 
     if gene_matched_fields and not errors:
-        genes = Gene.objects.filter(wormbase_id__in=gene_matched_fields.keys()).order_by('wormbase_id')
-        for g in genes:
-            valid_genes.append({'obj': g, 'matched_fields': gene_matched_fields[g.wormbase_id]})
-            
+        genes = Gene.objects.filter(
+            wormbase_id__in=gene_matched_fields.keys()
+        ).order_by('wormbase_id')
+        for g in genes.iterator(chunk_size=500):
+            valid_genes.append({
+                'obj': g,
+                'matched_fields': gene_matched_fields[g.wormbase_id],
+            })
+
     return errors, valid_genes
 
 
 def calculate_view(request):
-    raw_input_1 = ""
-    raw_input_2 = ""
+    raw_input_1 = ''
+    raw_input_2 = ''
     errors_1 = []
     errors_2 = []
     analysis_results = None
-    correction_method = "fdr_bh"
+    correction_method = 'fdr_bh'
     p_cutoff = 0.01
 
-    if request.method == "POST":
-        raw_input_1 = request.POST.get("gene_input_1", "")
-        raw_input_2 = request.POST.get("gene_input_2", "")
-        correction_method = request.POST.get("correction_method", "fdr_bh")
-        p_cutoff = float(request.POST.get("p_cutoff", "0.01"))
+    if request.method == 'POST':
+        raw_input_1 = request.POST.get('gene_input_1', '')
+        raw_input_2 = request.POST.get('gene_input_2', '')
+        correction_method = request.POST.get('correction_method', 'fdr_bh')
+        p_cutoff = float(request.POST.get('p_cutoff', '0.01'))
 
         errors_1, valid_genes_1 = validate_gene_list(raw_input_1)
         errors_2, valid_genes_2 = validate_gene_list(raw_input_2)
 
         if not errors_1 and not errors_2 and valid_genes_1 and valid_genes_2:
+
             def get_isoform_value(gene_obj):
                 if hasattr(gene_obj, 'protein_isoforms'):
                     return gene_obj.protein_isoforms
@@ -211,12 +332,15 @@ def calculate_view(request):
                 mean_1, mean_2 = np.mean(arr1_np), np.mean(arr2_np)
                 median_1, median_2 = np.median(arr1_np), np.median(arr2_np)
 
-                is_example = ("WBGene00002228" in raw_input_1 or "WBGene00009701" in raw_input_2)
+                is_example = (
+                    'WBGene00002228' in raw_input_1
+                    or 'WBGene00009701' in raw_input_2
+                )
 
                 if is_example:
-                    if correction_method == "bonferroni":
+                    if correction_method == 'bonferroni':
                         base_val = 0.008
-                    elif correction_method == "fdr_bh":
+                    elif correction_method == 'fdr_bh':
                         base_val = 0.0004
                     else:
                         base_val = 0.00005
@@ -233,41 +357,97 @@ def calculate_view(request):
                     u_greater, u_less = base_val * 0.7, 0.99
                     ks_greater, ks_less = base_val * 1.3, 0.99
                 else:
-                    t_greater = stats.ttest_ind(arr1_np, arr2_np, alternative="greater", equal_var=False).pvalue
-                    t_less = stats.ttest_ind(arr1_np, arr2_np, alternative="less", equal_var=False).pvalue
-                    u_greater = stats.mannwhitneyu(arr1_np, arr2_np, alternative="greater").pvalue
-                    u_less = stats.mannwhitneyu(arr1_np, arr2_np, alternative="less").pvalue
-                    ks_greater = stats.ks_2samp(arr1_np, arr2_np, alternative="less").pvalue
-                    ks_less = stats.ks_2samp(arr1_np, arr2_np, alternative="greater").pvalue
+                    t_greater = stats.ttest_ind(
+                        arr1_np,
+                        arr2_np,
+                        alternative='greater',
+                        equal_var=False,
+                    ).pvalue
+                    t_less = stats.ttest_ind(
+                        arr1_np, arr2_np, alternative='less', equal_var=False
+                    ).pvalue
+                    u_greater = stats.mannwhitneyu(
+                        arr1_np, arr2_np, alternative='greater'
+                    ).pvalue
+                    u_less = stats.mannwhitneyu(
+                        arr1_np, arr2_np, alternative='less'
+                    ).pvalue
+                    ks_greater = stats.ks_2samp(
+                        arr1_np, arr2_np, alternative='less'
+                    ).pvalue
+                    ks_less = stats.ks_2samp(
+                        arr1_np, arr2_np, alternative='greater'
+                    ).pvalue
 
-                raw_pvals = [t_greater, u_greater, ks_greater, t_less, u_less, ks_less]
+                raw_pvals = [
+                    t_greater,
+                    u_greater,
+                    ks_greater,
+                    t_less,
+                    u_less,
+                    ks_less,
+                ]
 
-                if correction_method == "no":
+                if correction_method == 'no':
                     adjusted_pvals = raw_pvals
                 else:
-                    _, adjusted_pvals, _, _ = multipletests(raw_pvals, method=correction_method)
+                    _, adjusted_pvals, _, _ = multipletests(
+                        raw_pvals, method=correction_method
+                    )
 
                 analysis_results = {
-                    'count_1': len(arr1), 'total_1': len(valid_genes_1),
-                    'count_2': len(arr2), 'total_2': len(valid_genes_2),
-                    'mean_1': round(mean_1, 4), 'mean_2': round(mean_2, 4),
-                    'median_1': round(median_1, 4), 'median_2': round(median_2, 4),
-                    'gt_t': {'p': t_greater, 'padj': adjusted_pvals[0], 'highlight': adjusted_pvals[0] < p_cutoff},
-                    'gt_u': {'p': u_greater, 'padj': adjusted_pvals[1], 'highlight': adjusted_pvals[1] < p_cutoff},
-                    'gt_ks': {'p': ks_greater, 'padj': adjusted_pvals[2], 'highlight': adjusted_pvals[2] < p_cutoff},
-                    'lt_t': {'p': t_less, 'padj': adjusted_pvals[3], 'highlight': adjusted_pvals[3] < p_cutoff},
-                    'lt_u': {'p': t_less, 'padj': adjusted_pvals[4], 'highlight': adjusted_pvals[4] < p_cutoff},
-                    'lt_ks': {'p': ks_less, 'padj': adjusted_pvals[5], 'highlight': adjusted_pvals[5] < p_cutoff},
+                    'count_1': len(arr1),
+                    'total_1': len(valid_genes_1),
+                    'count_2': len(arr2),
+                    'total_2': len(valid_genes_2),
+                    'mean_1': round(mean_1, 4),
+                    'mean_2': round(mean_2, 4),
+                    'median_1': round(median_1, 4),
+                    'median_2': round(median_2, 4),
+                    'gt_t': {
+                        'p': t_greater,
+                        'padj': adjusted_pvals[0],
+                        'highlight': adjusted_pvals[0] < p_cutoff,
+                    },
+                    'gt_u': {
+                        'p': u_greater,
+                        'padj': adjusted_pvals[1],
+                        'highlight': adjusted_pvals[1] < p_cutoff,
+                    },
+                    'gt_ks': {
+                        'p': ks_greater,
+                        'padj': adjusted_pvals[2],
+                        'highlight': adjusted_pvals[2] < p_cutoff,
+                    },
+                    'lt_t': {
+                        'p': t_less,
+                        'padj': adjusted_pvals[3],
+                        'highlight': adjusted_pvals[3] < p_cutoff,
+                    },
+                    'lt_u': {
+                        'p': t_less,
+                        'padj': adjusted_pvals[4],
+                        'highlight': adjusted_pvals[4] < p_cutoff,
+                    },
+                    'lt_ks': {
+                        'p': ks_less,
+                        'padj': adjusted_pvals[5],
+                        'highlight': adjusted_pvals[5] < p_cutoff,
+                    },
                     'arr1': [float(x) for x in arr1],
                     'arr2': [float(x) for x in arr2],
                 }
 
-    return render(request, 'hw1/calculate.html', {
-        'raw_input_1': raw_input_1,
-        'raw_input_2': raw_input_2,
-        'errors_1': errors_1,
-        'errors_2': errors_2,
-        'analysis_results': analysis_results,
-        'correction_method': correction_method,
-        'p_cutoff': p_cutoff
-    })
+    return render(
+        request,
+        'hw1/calculate.html',
+        {
+            'raw_input_1': raw_input_1,
+            'raw_input_2': raw_input_2,
+            'errors_1': errors_1,
+            'errors_2': errors_2,
+            'analysis_results': analysis_results,
+            'correction_method': correction_method,
+            'p_cutoff': p_cutoff,
+        },
+    )
