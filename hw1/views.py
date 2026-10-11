@@ -472,52 +472,25 @@ def calculate_view(request):
                 mean_1, mean_2 = np.mean(arr1_np), np.mean(arr2_np)
                 median_1, median_2 = np.median(arr1_np), np.median(arr2_np)
 
-                is_example = (
-                    'WBGene00002228' in raw_input_1
-                    or 'WBGene00009701' in raw_input_2
-                )
-
-                if is_example:
-                    if correction_method == 'bonferroni':
-                        base_val = 0.008
-                    elif correction_method == 'fdr_bh':
-                        base_val = 0.0004
-                    else:
-                        base_val = 0.00005
-
-                    if p_cutoff == 0.001:
-                        if base_val > 0.001:
-                            base_val = 0.002
-                        else:
-                            base_val = 0.0002
-                    elif p_cutoff == 0.05:
-                        base_val = 0.0001
-
-                    t_greater, t_less = base_val, 0.99
-                    u_greater, u_less = base_val * 0.7, 0.99
-                    ks_greater, ks_less = base_val * 1.3, 0.99
-                else:
-                    t_greater = stats.ttest_ind(
-                        arr1_np,
-                        arr2_np,
-                        alternative='greater',
-                        equal_var=False,
-                    ).pvalue
-                    t_less = stats.ttest_ind(
-                        arr1_np, arr2_np, alternative='less', equal_var=False
-                    ).pvalue
-                    u_greater = stats.mannwhitneyu(
-                        arr1_np, arr2_np, alternative='greater'
-                    ).pvalue
-                    u_less = stats.mannwhitneyu(
-                        arr1_np, arr2_np, alternative='less'
-                    ).pvalue
-                    ks_greater = stats.ks_2samp(
-                        arr1_np, arr2_np, alternative='less'
-                    ).pvalue
-                    ks_less = stats.ks_2samp(
-                        arr1_np, arr2_np, alternative='greater'
-                    ).pvalue
+                # 【修改處】拔除 is_example 的特判，直接執行真實統計計算
+                t_greater = stats.ttest_ind(
+                    arr1_np, arr2_np, alternative='greater', equal_var=False
+                ).pvalue
+                t_less = stats.ttest_ind(
+                    arr1_np, arr2_np, alternative='less', equal_var=False
+                ).pvalue
+                u_greater = stats.mannwhitneyu(
+                    arr1_np, arr2_np, alternative='greater'
+                ).pvalue
+                u_less = stats.mannwhitneyu(
+                    arr1_np, arr2_np, alternative='less'
+                ).pvalue
+                ks_greater = stats.ks_2samp(
+                    arr1_np, arr2_np, alternative='less'
+                ).pvalue
+                ks_less = stats.ks_2samp(
+                    arr1_np, arr2_np, alternative='greater'
+                ).pvalue
 
                 raw_pvals = [
                     t_greater,
